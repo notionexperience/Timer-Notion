@@ -1,0 +1,77 @@
+<!-- reset.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reset Your Password</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      max-width: 400px;
+      margin: auto;
+    }
+    input, button {
+      display: block;
+      width: 100%;
+      margin: 1rem 0;
+      padding: 0.5rem;
+      font-size: 16px;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h2>Set Your New Password</h2>
+
+  <input type="password" id="newPasswordInput" placeholder="New Password" />
+  <button id="setNewPasswordBtn">Set Password</button>
+  <p id="message"></p>
+
+  <script type="module">
+    import { supabase } from './supabase-init.js';
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      const message = document.getElementById("message");
+
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error || !session) {
+        message.textContent = "Invalid or expired link. Please try again.";
+        message.className = "error";
+        return;
+      }
+
+      document.getElementById("setNewPasswordBtn").addEventListener("click", async () => {
+        const newPassword = document.getElementById("newPasswordInput").value.trim();
+
+        if (!newPassword || newPassword.length < 6) {
+          message.textContent = "Password must be at least 6 characters.";
+          message.className = "error";
+          return;
+        }
+
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+        if (error) {
+          message.textContent = "Failed to update password: " + error.message;
+          message.className = "error";
+        } else {
+          message.textContent = "✅ Password updated! Redirecting...";
+          message.className = "success";
+
+          setTimeout(() => {
+            window.location.href = "/"; // Change to your login or app URL
+          }, 2000);
+        } 
+      });
+    });
+  </script>
+</body>
+</html>
