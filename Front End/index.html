@@ -4,12 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FocusFlow – Task Timer with Notes & Priorities</title>
-  <script type="module" src="./script.js"></script>
-<<<<<<< HEAD
-=======
-  <script src="./supabase-init.js" type="module"></script>
->>>>>>> e04b2ad1842bc0eacc0e70c0b4518e0a5df28126
+
   <link rel="stylesheet" href="./styles.css" />
+
 </head>
 <body>
   <button id="themeToggle" class="theme-toggle-button" aria-pressed="false">🌖 Theme</button>
@@ -17,96 +14,86 @@
   <div id="mainContent">
     <h1>FocusFlow</h1>
 
-    <div class="timer-controls">
-      <input type="number" id="timeInput" class="input" min="1" placeholder="Set Time" autocomplete="off" />
-      <button id="setButton" class="button">Set</button>
-      <button id="startButton" class="button" disabled>Start</button>
-      <button id="stopButton" class="button" disabled>Stop</button>
-    </div>
-
-    <div id="timer">0:00</div>
-    <div id="timerBarContainer">
-      <div id="timerBar"></div>
-    </div>
-
-    <hr class="custom-hr" />
-
-    <div class="task-input-container">
-      <label for="taskInput" class="sr-only">Add a new task</label>
-      <input type="text" id="taskInput" placeholder="Add a new task" aria-label="Task Name" />
-      <button id="addTaskButton" class="button">Add Task</button>
-    </div>
-
-    <div class="task-control-row">
-      <select class="select-box category-select" id="categorySelect">
-        <option value="Work">🏷️ Work</option>
-        <option value="Personal" selected>🏷️ Personal</option>
-        <option value="Health">🏷️ Health</option>
-        <option value="__custom__">Add New Category…</option>
-      </select>
-
-      <select class="select-box priority-select" id="prioritySelect">
-        <option value="Low">⚡ Low</option>
-        <option value="Medium" selected>⚡ Medium</option>
-        <option value="High">⚡ High</option>
-        <option value="__custom__">Add New Priority…</option>
-      </select>
-
-      <div id="taskCountToday" class="task-counter-line">
-        <div class="task-counter-content">
-          <div class="counter-text">
-            <span class="count">0</span>
-            <span class="label">tasks</span> </div>
-          <div class="task-actions">
-            <button id="clearFinishedBtn" class="reset-button">Clear Done</button> <button id="resetCountBtn" class="reset-button">Reset All</button> </div>
-        </div>
-      </div>
-    </div>
-
-    <hr class="custom-hr" />
-
-    <button id="toggleNotes" class="notes-toggle">✎ Add Notes</button>
-
-    <button id="undoResetBtn" class="undo-button">Undo Reset</button>
-  </div>
-
 <div id="auth-section">
     <h2>Login to FocusFlow</h2>
-<<<<<<< HEAD
-    <form id="authForm"> <input type="email" id="emailInput" placeholder="Enter your email" required />
-        <input type="password" id="passwordInput" placeholder="Enter your password" required />
-        <button type="button" id="signUpBtn">Sign Up</button> <button type="button" id="signInBtn">Log In</button> </form>
-    <button id="sendResetEmailBtn">Set Password</button> </div>
-
-<div id="app-section" style="display:none;">
-=======
-    <input type="email" id="emailInput" placeholder="Enter your email" />
-    <input type="password" id="passwordInput" placeholder="Enter your password" />
-    <button id="signUpBtn">Sign Up</button>
+    <input type="email" id="emailInput" placeholder="Enter your email" /> <input type="password" id="passwordInput" placeholder="Enter your password" /> <button id="signUpBtn">Sign Up</button>
     <button id="signInBtn">Log In</button>
     <button id="sendResetEmailBtn">Set Password</button>
-</div>
-
-  <div id="app-section">
->>>>>>> e04b2ad1842bc0eacc0e70c0b4518e0a5df28126
-    <h2>Welcome to FocusFlow!</h2>
-    <p id="guestModeMessage" style="color: orange; display: none;">You are in guest mode. Your data will only be saved on this device. Sign up/Log in to save permanently!</p>
-    <button id="logoutBtn">Logout</button>
     </div>
 
+    <div id="app-section">
+        <h2>Welcome to FocusFlow!</h2>
+        <p id="guestModeMessage" style="display:none;">
+            You are in guest mode. Your tasks and notes are saved only on this device.
+            <br>Sign up to save and sync across devices!
+        </p>
+        <button id="logoutBtn">Logout</button></div>
 
-  <div id="notesSidebar" class="notes-sidebar">
+        <div class="timer-controls">
+            <input type="number" id="timeInput" class="input" min="1" placeholder="Set Time" autocomplete="off" />
+            <button id="setButton" class="button">Set</button>
+            <button id="startButton" class="button" disabled>Start</button>
+            <button id="stopButton" class="button" disabled>Stop</button>
+        </div>
+
+        <div id="timer">0:00</div>
+        <div id="timerBarContainer">
+            <div id="timerBar"></div>
+        </div>
+
+        <hr class="custom-hr" />
+
+        <div class="task-input-container">
+            <label for="taskInput" class="sr-only">Add a new task</label>
+            <input type="text" id="taskInput" placeholder="Add a new task" aria-label="Task Name" />
+            <button id="addTaskButton" class="button">Add Task</button>
+        </div>
+
+        <div class="task-control-row">
+            <select class="select-box category-select" id="categorySelect">
+                <option value="Work">🏷️ Work</option>
+                <option value="Personal" selected>🏷️ Personal</option>
+                <option value="Health">🏷️ Health</option>
+                <option value="__custom__">Add New Category…</option>
+            </select>
+
+            <select class="select-box priority-select" id="prioritySelect">
+                <option value="Low">⚡ Low</option>
+                <option value="Medium" selected>⚡ Medium</option>
+                <option value="High">⚡ High</option>
+                <option value="__custom__">Add New Priority…</option>
+            </select>
+
+            <div id="taskCountToday" class="task-counter-line">
+                <div class="task-counter-content">
+                    <div class="counter-text">
+                        <span class="count">0</span>
+                        <span class="label"></span>
+                    </div>
+                    <div class="task-actions">
+                        <button id="clearFinishedBtn" class="reset-button">Clear Done</button>
+                        <button id="resetCountBtn" class="reset-button">Reset All</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr class="custom-hr" />
+        <ul id="taskList"></ul>
+
+
+
+        <button id="toggleNotes" class="notes-toggle">✎ Add Notes</button>
+    </div>
+  </div> <div id="notesSidebar" class="notes-sidebar">
     <div class="notes-header">
       <h2>🗒️ Notes</h2>
       <button id="closeNotes" class="close-button">✖</button>
     </div>
-    <div class="notes-body">
-      <textarea id="notesArea" placeholder="Write your notes here..."></textarea>
-      <div id="renderedNotes" class="markdown-output"></div>
-    </div>
+    <textarea id="notes" placeholder="Write your notes here..."></textarea>
     <button id="resetNotesBtn" class="reset-notes-button">Reset Notes</button>
   </div>
-
-
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script type="module" src="./script.js"></script>
+  <script src="./supabase-init.js" type="module"></script>
 </body>
 </html>

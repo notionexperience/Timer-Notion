@@ -330,7 +330,27 @@ function updateTaskCounter() {
     counterSpan.textContent = `${finishedTasks} / ${totalTasks}`;
   }
 }
+// Theme Toggling
+const themeToggleBtn = document.getElementById("themeToggle");
+const storedTheme = localStorage.getItem("theme");
 
+// Apply stored theme on load
+if (storedTheme) {
+    document.body.setAttribute("data-theme", storedTheme);
+    if (themeToggleBtn) { // Check if button exists before setting aria-pressed
+        themeToggleBtn.setAttribute("aria-pressed", storedTheme === "dark");
+    }
+}
+
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+        const currentTheme = document.body.getAttribute("data-theme");
+        const newTheme = currentTheme === "dark" ? "light" : "dark";
+        document.body.setAttribute("data-theme", newTheme);
+        localStorage.setItem("theme", newTheme);
+        themeToggleBtn.setAttribute("aria-pressed", newTheme === "dark");
+    });
+}
 
 // Timer variables and functions (from your original code)
 let time = 0;
@@ -967,46 +987,6 @@ function init() {
     if (e.key === "Enter") addTaskFromInput();
   });
 
-<<<<<<< HEAD
-=======
-  // Additional UI stuff like notes sidebar, reset buttons etc. would go here as in your original code
-  // Sidebar notes toggle logic
-  
-  document.getElementById("signUpBtn")?.addEventListener("click", async () => {
-    const email = document.getElementById("emailInput").value;
-    const password = document.getElementById("passwordInput").value;
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) return console.error("Signup failed:", error.message);
-    alert("Signup successful – check your email to confirm");
-  });
-
-  document.getElementById("signInBtn")?.addEventListener("click", async () => {
-    const email = document.getElementById("emailInput").value;
-    const password = document.getElementById("passwordInput").value;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return console.error("Login failed:", error.message);
-    console.log("Logged in:", data);
-    await checkUserAndLoadApp(); // Re-check user and load app after successful sign-in
-  });
-
-  document.getElementById("logoutBtn")?.addEventListener("click", async () => {
-    await supabase.auth.signOut();
-    location.reload();
-  });
-document.getElementById("sendResetEmailBtn").addEventListener("click", async () => {
-  const email = document.getElementById("emailInput").value;
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + "./reset.html"
-  });
-
-  if (error) {
-    alert("Error sending password setup email: " + error.message);
-  } else {
-    alert("Check your inbox to set your password.");
-  }
-});
->>>>>>> e04b2ad1842bc0eacc0e70c0b4518e0a5df28126
 
   // --- Sidebar Notes Toggle ---
   const toggleNotesBtn = document.getElementById("toggleNotes");

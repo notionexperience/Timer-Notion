@@ -367,7 +367,31 @@ body[data-theme="dark"] #taskList li:not(.finished):hover {
   outline: none;
   
 }
-
+#notesSidebar textarea#notes { /* Be specific to override potential generic textarea styles */
+    width: calc(100% - 20px); /* Account for padding */
+    height: calc(100% - 100px); /* Adjust based on header/footer height */
+    padding: 10px;
+    margin: 10px; /* To give some space from edges */
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 1em;
+    line-height: 1.5;
+    resize: none; /* Prevent resizing */
+    background-color: var(--input-bg);
+    color: var(--fg);
+    box-sizing: border-box; /* Include padding/border in width/height */
+}
+/* Ensure the sidebar itself accommodates the textarea */
+#notesSidebar {
+    /* Keep your existing styles for position, width, height, etc. */
+    display: flex; /* Make it a flex container */
+    flex-direction: column; /* Arrange items vertically */
+    justify-content: flex-start; /* Align content to the top */
+    /* Add padding/gap if needed for internal elements */
+    padding-bottom: 20px; /* Give space for the reset button */
+}
+/*
 .notes-body {
   display: flex;
   flex-direction: column;
@@ -390,7 +414,7 @@ body[data-theme="dark"] #taskList li:not(.finished):hover {
     background-color: var(--input-bg);
       color: var(--fg);
 }
-
+*/
 .reset-notes-button {
   align-self: center;
   background-color: #dc3545;
@@ -436,23 +460,6 @@ body[data-theme="dark"] #taskList li:not(.finished):hover {
 
 .reset-button:hover {
   background-color: #b02a37;
-}
-
-.undo-button {
-  background-color: #ffc107;
-  border: none;
-  color: #333;
-  padding: 6px 12px;
-  font-size: 14px;
-  border-radius: 5px;
-  margin-top: 10px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  margin-top: 10px;
-}
-
-.undo-button:hover {
-  background-color: #e0a800;
 }
 
 #mainContent {
@@ -554,9 +561,13 @@ body[data-theme="dark"] .category-label:hover {
   background-color: #333; /* or #444 if you want it slightly lighter */
 }
 
-.category-label.active-category {
-  background-color: #007bff;
-  color: white;
+.category-label.active-category,
+.priority-label.active-priority {
+    background-color: var(--button-bg); /* Use your primary button color */
+    color: var(--button-fg); /* Text color for active state */
+    border-color: var(--button-bg);
+    font-weight: bold;
+    /* Add any other active styles like box-shadow, transform etc. */
 }
 
 
@@ -670,7 +681,7 @@ body[data-theme="dark"] .priority-label:hover {
   justify-content: space-between;
   flex-wrap: wrap; /* for responsiveness */
   gap: 20px;
-  max-width: 800px;
+  min-width: 800px;
   margin: 8px auto 0px;
 }
 
@@ -689,7 +700,7 @@ body[data-theme="dark"] .priority-label:hover {
   align-items: center;
   justify-content: space-between;  /* Spread content horizontally */
   gap: 15px;                      /* Space between children */
-  min-width: 220px;               /* Ensure it doesn’t shrink too much */
+  min-width: 340px;               /* Ensure it doesn’t shrink too much */
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 .task-counter-line:hover {
@@ -850,4 +861,15 @@ h1::after {
   border: none;
   color: #007bff;
   cursor: pointer;
+}
+#guestModeMessage {
+    background-color: var(--card-bg); /* Or a softer background */
+    border: 1px solid var(--border);
+    padding: 10px 15px;
+    margin-top: 15px;
+    border-radius: 8px;
+    font-size: 0.9em;
+    color: var(--fg);
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
