@@ -133,6 +133,7 @@ async function checkUserAndLoadApp() {
   const appSection = document.getElementById("app-section");
   const guestModeMessage = document.getElementById("guestModeMessage");
   const logoutBtn = document.getElementById("logoutBtn"); // Get logout button reference
+  const authStatusDisplay = document.getElementById("authStatusDisplay"); // Get auth status display
 
   // If user is logged in via Supabase
   if (user) {
@@ -140,30 +141,24 @@ async function checkUserAndLoadApp() {
     if (authSection) authSection.style.display = "none";
     if (appSection) appSection.style.display = "block";
     if (guestModeMessage) guestModeMessage.style.display = "none";
-    // Place logout button where you want it to be visible for logged in users
-    if (logoutBtn) logoutBtn.style.display = "block"; // Assuming you want it visible when logged in
-
-    await loadTasks(); // This will use Supabase
-    await loadNote();  // This will use Supabase
+    if (logoutBtn) logoutBtn.style.display = "block"; // Show logout button for logged-in users
+    if (authStatusDisplay) authStatusDisplay.textContent = `Logged in as: ${user.email}`; // Display user email
   } else {
     // No Supabase user logged in. Act as a guest.
     currentUser = null; // Ensure currentUser is null for guest mode
     if (authSection) authSection.style.display = "block"; // Always show login options for guests
     if (appSection) appSection.style.display = "block";  // Always show app content for guests
 
-    // Hide logout button for guests
-    if (logoutBtn) logoutBtn.style.display = "none";
-
+    if (logoutBtn) logoutBtn.style.display = "none"; // Hide logout button for guests
+    if (authStatusDisplay) authStatusDisplay.textContent = "Guest Mode"; // Display guest status
 
     const hasGuestData = getGuestTasks().length > 0 || getGuestNote().length > 0;
     if (guestModeMessage) {
         guestModeMessage.style.display = hasGuestData ? "block" : "none"; // Show message only if guest data exists
     }
-
-
-    await loadTasks(); // This will use localStorage
-    await loadNote();  // This will use localStorage
   }
+  await loadTasks(); // This will use Supabase or localStorage based on currentUser
+  await loadNote();  // This will use Supabase or localStorage based on currentUser
 }
 
 // --- Data Persistence Functions (Conditional Logic) ---

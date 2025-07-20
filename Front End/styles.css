@@ -34,12 +34,195 @@ body {
   font-family: Arial, sans-serif;
   color: var(--fg);
 }
+/* --- Navigation Bar Styles --- */
+#main-navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 10px 20px;
+    background-color: var(--card-bg); /* Use card background for the nav */
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    position: sticky; /* Makes it stick to the top */
+    top: 0;
+    z-index: 100; /* Ensure it's above other content */
+    box-sizing: border-box; /* Include padding in width */
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.nav-left, .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Space between items in nav sections */
+}
+
+.nav-title {
+    font-size: 1.8rem; /* Slightly smaller than main H1 */
+    font-weight: 700;
+    color: var(--button-bg); /* Use your primary color for the title */
+    margin: 0; /* Remove default margin */
+}
+/* Remove the ::after pseudo-element for the nav title */
+.nav-title::after {
+    display: none;
+}
+
+#auth-nav-items, #user-nav-items {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap; /* Allow inputs/buttons to wrap */
+}
+
+#auth-nav-items input {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--fg);
+    font-size: 0.9em;
+    width: 120px; /* Adjust as needed */
+}
+
+.nav-button {
+    padding: 8px 12px;
+    font-size: 0.9em;
+    border-radius: 5px;
+    border: none;
+    background-color: var(--button-bg);
+    color: var(--button-fg);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.nav-button:hover {
+    background-color: #4aa2ff; /* Lighter blue on hover */
+}
+
+.user-email {
+    font-weight: bold;
+    color: var(--fg);
+    font-size: 1em;
+}
+
+/* Adjust mainContent padding to account for sticky nav */
+#mainContent {
+    padding-top: 20px; /* Add some padding so content doesn't go under nav */
+    /* Keep existing width, margin, display properties */
+    width: 90%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 768px) {
+    #main-navbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px;
+    }
+    .nav-right {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+    #auth-nav-items, #user-nav-items {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    #auth-nav-items input, .nav-button {
+        width: 100%;
+        box-sizing: border-box; /* Ensure padding/border included in width */
+    }
+}
+/* Notes Sidebar */
+.notes-sidebar {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 350px;
+  max-width: 100%;
+  height: 95%;
+  background: var(--card-bg);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+  transition: right 0.3s ease-in-out;
+  z-index: 1000;
+  padding: 20px;
+  display: flex;
+    border-radius: 20px 0px 0px 20px;
+  flex-direction: column;
+  overflow-y: auto;
+    color: var(--fg);
+}
+#toggleNotes {
+    border: none;
+    cursor: pointer;
+}
+.notes-sidebar.open {
+  right: 0;
+}
+
+.notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-left: 10px;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  color: #888;
+  transition: color 0.2s ease;
+  margin-right: 1.5rem;
+}
+.close-button:hover,
+.close-button:focus {
+  color: #ff3b3b; /* bright red to indicate close */
+  outline: none;
+  
+}
+#notesSidebar textarea#notes { /* Be specific to override potential generic textarea styles */
+    width: calc(100% - 20px); /* Account for padding */
+    height: calc(100% - 100px); /* Adjust based on header/footer height */
+    padding: 10px;
+    margin: 10px; /* To give some space from edges */
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 1em;
+    line-height: 1.5;
+    resize: none; /* Prevent resizing */
+    background-color: var(--input-bg);
+    color: var(--fg);
+    box-sizing: border-box; /* Include padding/border in width/height */
+}
+/* Ensure the sidebar itself accommodates the textarea */
+#notesSidebar {
+    /* Keep your existing styles for position, width, height, etc. */
+    display: flex; /* Make it a flex container */
+    flex-direction: column; /* Arrange items vertically */
+    justify-content: flex-start; /* Align content to the top */
+    /* Add padding/gap if needed for internal elements */
+    padding-bottom: 20px; /* Give space for the reset button */
+}
 
 /* Timer */
 #timer {
   font-size: 48px;
   color: var(--fg); /* ✅ Replace this */
   margin-bottom: 20px;
+     justify-self: center;
 }
 
 #timer.active {
@@ -51,6 +234,7 @@ body {
   width: 100%;
   max-width: 400px;
   height: 10px;
+     justify-self: center;
   background-color: var(--border);
   border-radius: 5px;
   margin-bottom: 20px;
@@ -60,7 +244,6 @@ body {
 #timerBar {
   height: 100%;
   width: 0%;
-
     background-color:var(--button-bg);
   transition: width 1s linear;
 }
@@ -101,6 +284,7 @@ background-color: var(--input-bg);
 }
 .timer-controls {
   display: flex;
+ justify-content: center;
   gap: 14px;          /* space between input and buttons */
   align-items: center;
   margin-bottom: 1rem;
@@ -290,131 +474,7 @@ body[data-theme="dark"] #taskList li:not(.finished):hover {
   border-top: 2px solid #007bff;
 }
 
-/* Notes Toggle */  
-.notes-toggle {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1001;
-  padding: 10px 16px;
-  font-size: 14px;
-    font-weight: bold;
-  background-color: var(--button-bg);
-  color: var(--button-fg);
-  border: none;
-  border-radius: 20px;
-  cursor: pointer;
-  margin-right: 20px;
-  margin-top: 12px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-      transition: background-color 0.3s ease, color 0.3s ease, transform 0.1s ease;
-}
-  .notes-toggle:hover {
-    background-color: #4aa2ff;
-    transform: scale(1.05);
-  }
 
-.notes-toggle:active {
-  transform: scale(0.97);
-}
-
-
-/* Notes Sidebar */
-.notes-sidebar {
-  position: fixed;
-  top: 0;
-  right: -100%;
-  width: 350px;
-  max-width: 100%;
-  height: 95%;
-  background: var(--card-bg);
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
-  transition: right 0.3s ease-in-out;
-  z-index: 1000;
-  padding: 20px;
-  display: flex;
-    border-radius: 20px 0px 0px 20px;
-  flex-direction: column;
-  overflow-y: auto;
-    color: var(--fg);
-}
-
-.notes-sidebar.open {
-  right: 0;
-}
-
-.notes-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  padding-left: 10px;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 0;
-  color: #888;
-  transition: color 0.2s ease;
-  margin-right: 1.5rem;
-}
-.close-button:hover,
-.close-button:focus {
-  color: #ff3b3b; /* bright red to indicate close */
-  outline: none;
-  
-}
-#notesSidebar textarea#notes { /* Be specific to override potential generic textarea styles */
-    width: calc(100% - 20px); /* Account for padding */
-    height: calc(100% - 100px); /* Adjust based on header/footer height */
-    padding: 10px;
-    margin: 10px; /* To give some space from edges */
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-family: Arial, sans-serif;
-    font-size: 1em;
-    line-height: 1.5;
-    resize: none; /* Prevent resizing */
-    background-color: var(--input-bg);
-    color: var(--fg);
-    box-sizing: border-box; /* Include padding/border in width/height */
-}
-/* Ensure the sidebar itself accommodates the textarea */
-#notesSidebar {
-    /* Keep your existing styles for position, width, height, etc. */
-    display: flex; /* Make it a flex container */
-    flex-direction: column; /* Arrange items vertically */
-    justify-content: flex-start; /* Align content to the top */
-    /* Add padding/gap if needed for internal elements */
-    padding-bottom: 20px; /* Give space for the reset button */
-}
-/*
-.notes-body {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 10px;
-  justify-content: space-between;
-  flex-grow: 1;
-}
-
-#notesArea {
-  height: 100%;
-  width: 95%;
-  resize: vertical;
-  padding: 10px;
-  font-size: 14px;
-  border-radius: 5px;
-  border: 1px solid var(--border);
-  font-family: sans-serif;
-  box-sizing: border-box;
-    background-color: var(--input-bg);
-      color: var(--fg);
-}
-*/
 .reset-notes-button {
   align-self: center;
   background-color: #dc3545;
@@ -630,31 +690,6 @@ body[data-theme="dark"] .priority-label:hover {
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 18px;
-}
-.theme-toggle-button {
-  position: fixed;
-  top: 32px;
-  left: 32px;
-  z-index: 1001;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: bold;
-  border: none;
-  border-radius: 20px;
-  background-color: var(--button-bg);
-  color: var(--button-fg);
-  cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  transition: background-color 0.3s ease, color 0.3s ease, transform 0.1s ease;
-}
-
-.theme-toggle-button:hover {
-  background-color: #4aa2ff;
-  transform: scale(1.05);
-}
-
-.theme-toggle-button:active {
-  transform: scale(0.97);
 }
 
 .task-counter-content {
