@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FocusFlow – Task Timer with Notes & Priorities</title>
-  <script type="module" src="/Front End/script.js"></script>
-  <link rel="stylesheet" href="/Front End/styles.css" />
+  <script type="module" src="./script.js"></script>
+  <script src="./supabase-init.js" type="module"></script>
+  <link rel="stylesheet" href="./styles.css" />
 
 </head>
 <body>
@@ -67,13 +68,14 @@
     <button id="undoResetBtn" class="undo-button" style="display: none;">Undo Reset</button>
   </div>
 
-  <div id="auth-section">
+<div id="auth-section">
     <h2>Login to FocusFlow</h2>
-<input type="email" id="resetEmailInput" placeholder="Enter your email" />
+    <input type="email" id="emailInput" placeholder="Enter your email" />
+    <input type="password" id="passwordInput" placeholder="Enter your password" />
     <button id="signUpBtn">Sign Up</button>
     <button id="signInBtn">Log In</button>
     <button id="sendResetEmailBtn">Set Password</button>
-  </div>
+</div>
 
   <div id="app-section" style="display:none;">
     <h2>Welcome to FocusFlow!</h2>
