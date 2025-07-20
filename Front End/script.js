@@ -761,7 +761,7 @@ document.getElementById("sendResetEmailBtn").addEventListener("click", async () 
   const email = document.getElementById("emailInput").value;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + "/reset.html"
+    redirectTo: window.location.origin + "./reset.html"
   });
 
   if (error) {
