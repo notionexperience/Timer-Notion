@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FocusFlow – Task Timer with Notes & Priorities</title>
   <script type="module" src="./script.js"></script>
-  <script src="./supabase-init.js" type="module"></script>
   <link rel="stylesheet" href="./styles.css" />
-
 </head>
 <body>
   <button id="themeToggle" class="theme-toggle-button" aria-pressed="false">🌖 Theme</button>
@@ -65,22 +63,22 @@
 
     <button id="toggleNotes" class="notes-toggle">✎ Add Notes</button>
 
-    <button id="undoResetBtn" class="undo-button" style="display: none;">Undo Reset</button>
+    <button id="undoResetBtn" class="undo-button">Undo Reset</button>
   </div>
 
 <div id="auth-section">
     <h2>Login to FocusFlow</h2>
-    <input type="email" id="emailInput" placeholder="Enter your email" />
-    <input type="password" id="passwordInput" placeholder="Enter your password" />
-    <button id="signUpBtn">Sign Up</button>
-    <button id="signInBtn">Log In</button>
-    <button id="sendResetEmailBtn">Set Password</button>
-</div>
+    <form id="authForm"> <input type="email" id="emailInput" placeholder="Enter your email" required />
+        <input type="password" id="passwordInput" placeholder="Enter your password" required />
+        <button type="button" id="signUpBtn">Sign Up</button> <button type="button" id="signInBtn">Log In</button> </form>
+    <button id="sendResetEmailBtn">Set Password</button> </div>
 
-  <div id="app-section" style="display:none;">
+<div id="app-section" style="display:none;">
     <h2>Welcome to FocusFlow!</h2>
+    <p id="guestModeMessage" style="color: orange; display: none;">You are in guest mode. Your data will only be saved on this device. Sign up/Log in to save permanently!</p>
     <button id="logoutBtn">Logout</button>
-    <ul id="taskList"></ul> </div>
+    </div>
+
 
   <div id="notesSidebar" class="notes-sidebar">
     <div class="notes-header">
