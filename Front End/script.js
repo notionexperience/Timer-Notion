@@ -959,6 +959,14 @@ function init() {
       event.preventDefault();
       const email = document.getElementById("emailInput").value;
       const password = document.getElementById("passwordInput").value;
+const guestModeMessage = document.getElementById('guestModeMessage');
+const signUpBtn = document.getElementById('signUpBtn');
+const signInBtn = document.getElementById('signInBtn'); // This was the one we specifically discussed for login
+const sendResetEmailBtn = document.getElementById('sendResetEmailBtn');
+const logoutBtn = document.getElementById('logoutBtn'); // If you have a logout button
+const authNavItems = document.getElementById('auth-nav-items'); // If you use this to show/hide auth elements
+const userNavItems = document.getElementById('user-nav-items'); // If you use this to show/hide user elements
+const userEmailDisplay = document.getElementById('userEmailDisplay'); // To display logged-in user's email
       await signUpUser(email, password);
   });
 
