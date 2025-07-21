@@ -950,12 +950,23 @@ function init() {
       await signUpUser(email, password);
   });
 
-  document.getElementById("signInBtn")?.addEventListener("click", async (event) => {
-      event.preventDefault();
-      const email = document.getElementById("emailInput").value;
-      const password = document.getElementById("passwordInput").value;
-      await signInUser(email, password);
-  });
+signInBtn?.addEventListener('click', async () => {
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+        alert(error.message);
+    } else {
+        // Explicitly set currentUser after successful login
+        currentUser = data.user; // <-- Add this line
+
+        // Now, call migration and UI update
+        await migrateGuestDataToSupabase();
+        updateUI(); // updateUI will now reflect the logged-in state
+        alert('Logged in successfully!');
+    }
+});
 
   document.getElementById("logoutBtn")?.addEventListener("click", async () => {
     await signOutUser();
