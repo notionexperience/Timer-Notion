@@ -125,40 +125,51 @@ async function resetPasswordForEmailUser(email) {
 }
 
 
-// --- CORE: Check User and Load App Logic ---
 async function checkUserAndLoadApp() {
   const { data: { user } } = await supabase.auth.getUser();
 
-  const authSection = document.getElementById("auth-section");
+  const authSection = document.getElementById("auth-section"); // This seems to refer to the main auth form, not nav
   const appSection = document.getElementById("app-section");
   const guestModeMessage = document.getElementById("guestModeMessage");
-  const logoutBtn = document.getElementById("logoutBtn"); // Get logout button reference
-  const authStatusDisplay = document.getElementById("authStatusDisplay"); // Get auth status display
+  const logoutBtn = document.getElementById("logoutBtn");
+  const authStatusDisplay = document.getElementById("authStatusDisplay"); // This ID does not exist in your HTML, consider using userEmailDisplay
+
+  // New: Get references for auth and user nav item containers
+  const authNavItems = document.getElementById("auth-nav-items");
+  const userNavItems = document.getElementById("user-nav-items");
+  const userEmailDisplay = document.getElementById("userEmailDisplay"); // Corrected ID based on HTML
 
   // If user is logged in via Supabase
   if (user) {
     currentUser = user;
-    if (authSection) authSection.style.display = "none";
-    if (appSection) appSection.style.display = "block";
+    if (authSection) authSection.style.display = "none"; // Hide main auth form
+    if (appSection) appSection.style.display = "block";  // Show app content
     if (guestModeMessage) guestModeMessage.style.display = "none";
-    if (logoutBtn) logoutBtn.style.display = "block"; // Show logout button for logged-in users
-    if (authStatusDisplay) authStatusDisplay.textContent = `Logged in as: ${user.email}`; // Display user email
+
+    // Show user-specific nav items, hide auth forms
+    if (authNavItems) authNavItems.style.display = "none";
+    if (userNavItems) userNavItems.style.display = "flex"; // Use flex as it's a horizontal nav
+    if (userEmailDisplay) userEmailDisplay.textContent = `Logged in as: ${user.email}`;
+
   } else {
     // No Supabase user logged in. Act as a guest.
-    currentUser = null; // Ensure currentUser is null for guest mode
-    if (authSection) authSection.style.display = "block"; // Always show login options for guests
-    if (appSection) appSection.style.display = "block";  // Always show app content for guests
+    currentUser = null;
 
-    if (logoutBtn) logoutBtn.style.display = "none"; // Hide logout button for guests
-    if (authStatusDisplay) authStatusDisplay.textContent = "Guest Mode"; // Display guest status
+    // Show auth forms, hide user-specific nav items
+    if (authNavItems) authNavItems.style.display = "flex"; // Show login/signup options
+    if (userNavItems) userNavItems.style.display = "none";
+    if (authSection) authSection.style.display = "block"; // Always show login options for guests (if it's the main auth form)
+    if (appSection) appSection.style.display = "block";  // Always show app content for guests
 
     const hasGuestData = getGuestTasks().length > 0 || getGuestNote().length > 0;
     if (guestModeMessage) {
-        guestModeMessage.style.display = hasGuestData ? "block" : "none"; // Show message only if guest data exists
+        guestModeMessage.style.display = hasGuestData ? "block" : "none";
     }
+    // Set status display for guest mode
+    if (userEmailDisplay) userEmailDisplay.textContent = "Guest Mode"; // Use the existing userEmailDisplay for consistency
   }
-  await loadTasks(); // This will use Supabase or localStorage based on currentUser
-  await loadNote();  // This will use Supabase or localStorage based on currentUser
+  await loadTasks();
+  await loadNote();
 }
 
 // --- Data Persistence Functions (Conditional Logic) ---
