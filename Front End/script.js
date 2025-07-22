@@ -81,19 +81,15 @@ async function migrateGuestDataToSupabase() {
 // --- Supabase Interaction Functions ---
 
 async function signInUser(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-        console.error("Login failed:", error.message);
-        alert("Login failed: " + error.message);
-    } else {
-        console.log("Logged in:", data);
-        // Ensure currentUser is updated here if you're using it globally
-        // For example: currentUser = data.user; 
-        
-        await migrateGuestDataToSupabase(); // Migrate any existing guest data
-        await checkUserAndLoadApp(); // This should handle updating the UI and loading user tasks
-        alert('Logged in successfully!'); // This alert should come from here
-    }
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    console.error("Login failed:", error.message);
+    alert("Login failed: " + error.message);
+  } else {
+    console.log("Logged in:", data);
+    await migrateGuestDataToSupabase(); // Migrate any existing guest data
+    await checkUserAndLoadApp(); // Reload app state with user data
+  }
 }
 
 async function signUpUser(email, password) {
@@ -131,44 +127,36 @@ async function resetPasswordForEmailUser(email) {
 
 // --- CORE: Check User and Load App Logic ---
 async function checkUserAndLoadApp() {
-    const { data: { user } } = await supabase.auth.getUser(); // Get current user session
+  const { data: { user } } = await supabase.auth.getUser();
 
-    if (user) {
-        currentUser = user; // Ensure currentUser is set
-        authNavItems.style.display = 'none'; // Hide login fields
-        userNavItems.style.display = 'flex'; // Show user-specific items
-        userEmailDisplay.textContent = user.email; // Display user email
-        guestModeMessage.style.display = 'none'; // Hide guest message
+  const authSection = document.getElementById("auth-section");
+  const appSection = document.getElementById("app-section");
+  const guestModeMessage = document.getElementById("guestModeMessage");
+  const logoutBtn = document.getElementById("logoutBtn"); // Get logout button reference
+  const authStatusDisplay = document.getElementById("authStatusDisplay"); // Get auth status display
 
-        // Clear existing tasks before loading new ones
-        taskList.innerHTML = ''; 
-        
-        // Fetch tasks for the logged-in user
-        const { data: userTasks, error: fetchError } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .order('created_at', { ascending: false }); // Or your preferred order
+  // If user is logged in via Supabase
+  if (user) {
+    currentUser = user;
+    if (authSection) authSection.style.display = "none";
+    if (appSection) appSection.style.display = "block";
+    if (guestModeMessage) guestModeMessage.style.display = "none";
+    if (logoutBtn) logoutBtn.style.display = "block"; // Show logout button for logged-in users
+    if (authStatusDisplay) authStatusDisplay.textContent = `Logged in as: ${user.email}`; // Display user email
+  } else {
+    // No Supabase user logged in. Act as a guest.
+    currentUser = null; // Ensure currentUser is null for guest mode
+    if (authSection) authSection.style.display = "block"; // Always show login options for guests
+    if (appSection) appSection.style.display = "block";  // Always show app content for guests
 
-        if (fetchError) {
-            console.error('Error fetching user tasks:', fetchError.message);
-            tasks = []; // Set tasks to empty on error
-        } else {
-            tasks = userTasks; // Update global tasks array with user's tasks
-        }
-        renderTasks(); // Render the fetched user tasks
+    if (logoutBtn) logoutBtn.style.display = "none"; // Hide logout button for guests
+    if (authStatusDisplay) authStatusDisplay.textContent = "Guest Mode"; // Display guest status
 
-    } else {
-        currentUser = null;
-        authNavItems.style.display = 'flex'; // Show login fields
-        userNavItems.style.display = 'none'; // Hide user-specific items
-        userEmailDisplay.textContent = ''; // Clear user email
-        guestModeMessage.style.display = 'block'; // Show guest message
-        
-        // If not logged in, load guest tasks
-        tasks = getGuestTasks(); 
-        renderTasks(); // Render guest tasks
+    const hasGuestData = getGuestTasks().length > 0 || getGuestNote().length > 0;
+    if (guestModeMessage) {
+        guestModeMessage.style.display = hasGuestData ? "block" : "none"; // Show message only if guest data exists
     }
+  }
   await loadTasks(); // This will use Supabase or localStorage based on currentUser
   await loadNote();  // This will use Supabase or localStorage based on currentUser
 }
@@ -959,39 +947,15 @@ function init() {
       event.preventDefault();
       const email = document.getElementById("emailInput").value;
       const password = document.getElementById("passwordInput").value;
-const guestModeMessage = document.getElementById('guestModeMessage');
-const signUpBtn = document.getElementById('signUpBtn');
-const signInBtn = document.getElementById('signInBtn'); // This was the one we specifically discussed for login
-const sendResetEmailBtn = document.getElementById('sendResetEmailBtn');
-const logoutBtn = document.getElementById('logoutBtn'); // If you have a logout button
-const authNavItems = document.getElementById('auth-nav-items'); // If you use this to show/hide auth elements
-const userNavItems = document.getElementById('user-nav-items'); // If you use this to show/hide user elements
-const userEmailDisplay = document.getElementById('userEmailDisplay'); // To display logged-in user's email
       await signUpUser(email, password);
   });
 
-signInBtn?.addEventListener('click', async () => {
-signInBtn?.addEventListener('click', async () => {
-    const email = emailInput.value;
-    const password = passwordInput.value;
-    
-    // ONLY call your signInUser function here
-    await signInUser(email, password); 
-    // Remove the redundant supabase.auth.signInWithPassword call and its if/else block
-});
-
-    if (error) {
-        alert(error.message);
-    } else {
-        // Explicitly set currentUser after successful login
-        currentUser = data.user; // <-- Add this line
-
-        // Now, call migration and UI update
-        await migrateGuestDataToSupabase();
-        updateUI(); // updateUI will now reflect the logged-in state
-        alert('Logged in successfully!');
-    }
-});
+  document.getElementById("signInBtn")?.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const email = document.getElementById("emailInput").value;
+      const password = document.getElementById("passwordInput").value;
+      await signInUser(email, password);
+  });
 
   document.getElementById("logoutBtn")?.addEventListener("click", async () => {
     await signOutUser();
