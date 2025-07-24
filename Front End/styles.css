@@ -160,9 +160,10 @@ body {
   overflow-y: auto;
     color: var(--fg);
 }
-#toggleNotes {
+#notes-toggle {
     border: none;
     cursor: pointer;
+    background-color: white;
 }
 .notes-sidebar.open {
   right: 0;
@@ -535,26 +536,36 @@ body.notes-open #mainContent {
   transform: translateX(-200px);
 }
 
+/* In styles.css */
 .edit-button {
-  background: none;
-  border: none;
-  color: #007bff;
-  font-size: 14px;         /* slightly bigger for better click/tap */
-  cursor: pointer;
-  padding: 4px 2px;        /* balanced padding for clickable area */
-  border-radius: 4px;      /* subtle rounding for better look */
-  transition: background-color 0.2s ease;
+    background: none; /* No button background */
+    border: none; /* No button border */
+    padding: 5px; /* Adjust padding around the icon */
+    cursor: pointer;
+    display: flex; /* Helps center the SVG */
+    justify-content: center;
+    align-items: center;
+    color: var(--fg); /* This sets the color for the SVG via currentColor */
+    transition: color 0.2s ease-in-out; /* Smooth hover transition */
+    /* Ensure no width/height properties that would stretch the button too much for an icon */
+    width: auto;
+    height: auto;
 }
 
-.edit-button:hover,
-.edit-button:focus {
-  background-color: rgba(0, 123, 255, 0.1);
-  outline: none;           /* remove default outline */
+.edit-button:hover {
+    color: var(--highlight-color); /* Changes SVG color on hover */
 }
 
-.edit-button:focus-visible {
-  outline: 2px solid #007bff; /* accessible focus ring */
-  outline-offset: 2px;
+/* Styles for the SVG element itself */
+.edit-button svg {
+    width: 14px; /* Set the desired size for your icon */
+    height: 14px;
+    fill: currentColor; /* Make sure SVG's fill matches parent text color */
+    display: block; /* Helps prevent extra space */
+
+    /* IMPORTANT: Add these if you suspect lingering shadows/filters */
+    filter: none; /* Removes any potential CSS filters/shadows */
+    box-shadow: none; /* Removes any potential CSS box-shadows */
 }
 
 .task-edit-input {
@@ -597,77 +608,61 @@ body.notes-open #mainContent {
 }
 
 
-.category-label {
+/* Base styles for category and priority labels */
+.category-label,
+.priority-label {
   display: inline-block;
   background-color: var(--select-bg);
   color: var(--fg);
-  padding-left: 8px;
-  padding-right: 12px;
   padding-top: 4px;
   padding-bottom: 4px;
   font-size: 12px;
   border-radius: 12px;
   user-select: none;
   transition: background-color 0.2s ease;
-    width: 70px;
-  text-align: center;  
-}
-
-.category-label:hover {
-  background-color: #ccc;
-}
-
-body[data-theme="dark"] .category-label:hover {
-  background-color: #333; /* or #444 if you want it slightly lighter */
-}
-
-.category-label.active-category,
-.priority-label.active-priority {
-    background-color: var(--button-bg); /* Use your primary button color */
-    color: var(--button-fg); /* Text color for active state */
-    border-color: var(--button-bg);
-    font-weight: bold;
-    /* Add any other active styles like box-shadow, transform etc. */
-}
-
-
-.priority-label {
-  font-size: 12px;
-  padding-left: 8px;
-  padding-right: 10px;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  border-radius: 12px;
-  background-color: var(--select-bg);
-  transition: background-color 0.2s ease;
-  user-select: none;
-  width: 80px;
   text-align: center;
 }
 
-
-.priority-label.active-priority {
-  background-color: #007bff; /* red for high priority vibe */
-  color: var(--fg);
-  border-radius: 12px;
-  padding-left: 10px;
-  padding-right: 10px;
-  cursor: pointer;
-  user-select: none;
-    text-align: center;
+.category-label {
+  padding-left: 8px;
+  padding-right: 12px;
+  width: 80px;
 }
+
+.priority-label {
+  padding-left: 8px;
+  padding-right: 10px;
+  width: 80px;
+}
+
+/* Hover states for category and priority labels */
+.category-label:hover,
 .priority-label:hover {
   background-color: #ccc;
 }
 
+/* Dark theme hover states */
+body[data-theme="dark"] .category-label:hover,
 body[data-theme="dark"] .priority-label:hover {
   background-color: #333; /* or #444 if you want it slightly lighter */
 }
 
-.priority-label.active-category {
+/* Active states for category and priority labels */
+.category-label.active-category,
+.priority-label.active-priority {
+  background-color: var(--button-bg); /* Use your primary button color */
+  color: var(--button-fg); /* Text color for active state */
+  border-color: var(--button-bg);
+  font-weight: bold;
+  width: 80px;
+  /* Add any other active styles like box-shadow, transform etc. */
+}
+
+/* Redundant/Conflicting rule - consider if this is needed */
+/* .priority-label.active-category {
   background-color: #007bff;
   color: white;
-}
+} */
 .select-box {
   appearance: none;
   -webkit-appearance: none;
@@ -907,4 +902,61 @@ h1::after {
     color: var(--fg);
     text-align: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+#toggleNotes.notes-toggle {
+    /* Remove padding/sizing that was for text */
+    padding: 5px; /* Smaller padding for an icon-only button */
+    width: auto; /* Let content define width */
+    height: auto;
+    background: none; /* Make background transparent if desired for icon-only */
+    color: var(--button-bg); /* Use foreground color for icon */
+    border: none; /* Remove border */
+    /* Remove gap if no text beside icon */
+    gap: 0;
+}
+
+#toggleNotes.notes-toggle:hover {
+    color: var(--highlight-color); /* Change color on hover for the icon */
+    background: none; /* Keep background transparent on hover too */
+}
+
+/* Style the SVG itself within the button */
+#toggleNotes.notes-toggle svg {
+    width: 20px; /* Adjust size as needed, e.g., 20px, 24px */
+    height: 20px;
+    fill: currentColor; /* Inherits color from the button's 'color' property */
+    display: block; /* Ensures proper rendering without extra space */
+
+    /* Crucial for removing any potential unwanted shadows/filters */
+    filter: none;
+    box-shadow: none;
+}
+/* Specific styles for the theme toggle button when it's an icon */
+#themeToggle.theme-toggle {
+    /* Override padding/sizing that was for text, making it compact */
+    padding: 5px; /* Smaller padding for an icon-only button */
+    width: auto; /* Let content define width */
+    height: auto;
+    background: none; /* Make background transparent if desired for icon-only */
+    color: var(--button-bg); /* Use foreground color for icon */
+    border: none; /* Remove border */
+    /* Remove gap if no text beside icon */
+    gap: 0;
+
+    /* Ensure no unwanted shadows/filters */
+    filter: none;
+    box-shadow: none;
+}
+
+#themeToggle.theme-toggle:hover {
+    color: var(--highlight-color); /* Change color on hover for the icon */
+    background: none; /* Keep background transparent on hover too */
+}
+
+/* Style the SVG element itself within the button */
+#themeToggle.theme-toggle svg {
+    width: 20px; /* Adjust size as needed, e.g., 20px, 24px */
+    height: 20px;
+    fill: currentColor; /* Inherits color from the button's 'color' property (var(--fg) or var(--highlight-color) on hover) */
+    display: block; /* Ensures proper rendering without extra space */
 }
