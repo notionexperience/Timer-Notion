@@ -322,18 +322,18 @@ async function updateTaskPositionsInDB() {
         };
     });
 
-    if (currentUser) {
-        // Use individual update calls instead of upsert to avoid ON CONFLICT issue
-        for (const task of tasksInOrder) {
-            const { error } = await supabase
-                .from("tasks")
-                .update({ position: task.position })
-                .eq("id", task.id)
-                .eq("user_id", currentUser.id); // Ensure RLS is respected
-            if (error) {
-                console.error(`Failed to update position for task ${task.id} in Supabase:`, error.message);
-            }
+if (currentUser) {
+    // Use individual update calls instead of upsert to avoid ON CONFLICT issue
+    for (const task of tasksInOrder) {
+        const { error } = await supabase
+            .from("tasks")
+            .update({ position: task.position })
+            .eq("id", task.id)
+            .eq("user_id", currentUser.id); // Ensure RLS is respected
+        if (error) {
+            console.error(`Failed to update position for task ${task.id} in Supabase:`, error.message);
         }
+    }
         console.log("Task positions updated in Supabase.");
     } else {
         // Update positions in Local Storage
@@ -393,6 +393,51 @@ const setButton = document.getElementById("setButton");
 const startButton = document.getElementById("startButton");
 const stopButton = document.getElementById("stopButton");
 
+// NEW: Get the audio element for timer end sound
+const timerEndSound = document.getElementById('timerEndSound');
+
+// NEW: Function to request notification permission
+function requestNotificationPermission() {
+    if ("Notification" in window) { // Check if Notification API is supported by the browser
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+                console.log("Notification permission granted.");
+            } else if (permission === "denied") {
+                console.warn("Notification permission denied. Please enable notifications for this site in your browser settings if you want them.");
+            }
+            // 'default' means user closed prompt without choosing, no action needed immediately
+        });
+    } else {
+        console.warn("Browser does not support desktop notifications.");
+    }
+}
+
+// NEW: Function to handle actions when the main timer finishes
+function timerFinished() {
+    // Play sound
+    if (timerEndSound) {
+        timerEndSound.play().catch(e => console.error("Error playing sound:", e));
+    }
+
+    // Show browser notification
+    if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("FocusFlow Timer", {
+            body: "Your main timer has finished!",
+            icon: "./assets/logo.png" // Optional: Path to a small icon for the notification
+                                         // Make sure this path is correct, or remove 'icon' if you don't have one.
+        });
+    } else {
+        // Fallback for browsers without notification support or if permission denied
+        showCustomAlert("Time's up!"); // Using your custom alert
+    }
+
+    // Reset timer display and buttons (existing logic)
+    if(timerElement) timerElement.textContent = "Time's up!";
+    if (startButton) startButton.disabled = false;
+    if (stopButton) stopButton.disabled = true;
+}
+
+
 function updateTimerDisplay() {
   const minutes = Math.floor(time / 60);
   const seconds = time % 60;
@@ -420,9 +465,7 @@ function setTimer() {
 function updateTimer() {
   if (time <= 0) {
     clearInterval(timerInterval);
-    if(timerElement) timerElement.textContent = "Time's up!";
-    if (startButton) startButton.disabled = false;
-    if (stopButton) stopButton.disabled = true;
+    timerFinished(); // MODIFIED: Call the new function here
     return;
   }
   updateTimerDisplay();
@@ -875,11 +918,7 @@ function createTaskElement(task) {
     editBtn.classList.add("edit-button");
     editBtn.style.cursor = "pointer";
     editBtn.title = "Edit task";
-    editBtn.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-  <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z" />
-</svg>
-`;
+    editBtn.innerHTML = `✏️`;
 editBtn.setAttribute('aria-label', 'Edit task');
 
 
@@ -1193,6 +1232,9 @@ function init() {
 
   // Initial check for user and load app content
   checkUserAndLoadApp();
+
+  // NEW: Request notification permission when the app initializes
+  requestNotificationPermission();
 
   // --- Auth Section Event Listeners ---
   document.getElementById("signUpBtn")?.addEventListener("click", async (event) => {
