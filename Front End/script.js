@@ -323,17 +323,18 @@ async function updateTaskPositionsInDB() {
     });
 
     if (currentUser) {
-        // Update positions in Supabase
-        const { error } = await supabase.from("tasks").upsert(
-            tasksInOrder.map(task => ({
-                id: task.id,
-                user_id: currentUser.id, // Ensure user_id is included for RLS
-                position: task.position,
-            })),
-            { onConflict: 'id' } // Conflict on 'id' to update existing rows
-        );
-        if (error) console.error("Failed to update task positions in Supabase:", error.message);
-        else console.log("Task positions updated in Supabase.");
+        // Use individual update calls instead of upsert to avoid ON CONFLICT issue
+        for (const task of tasksInOrder) {
+            const { error } = await supabase
+                .from("tasks")
+                .update({ position: task.position })
+                .eq("id", task.id)
+                .eq("user_id", currentUser.id); // Ensure RLS is respected
+            if (error) {
+                console.error(`Failed to update position for task ${task.id} in Supabase:`, error.message);
+            }
+        }
+        console.log("Task positions updated in Supabase.");
     } else {
         // Update positions in Local Storage
         let guestTasks = getGuestTasks();
