@@ -312,7 +312,7 @@ input[type=number]::-webkit-outer-spin-button {
 /* Date input specific styling */
 input[type="date"].date-input {
     width: auto; /* Adjust width as needed */
-    min-width: 160px; /* Minimum width for date input */
+    min-width: 250px; /* Minimum width for date input */
     padding: 10px 14px;
     font-size: 14px;
     border-radius: 6px;

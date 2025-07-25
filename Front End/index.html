@@ -57,24 +57,29 @@
       <hr class="custom-hr" />
       <div class="task-control-row">
         <input type="text" id="taskInput" placeholder="Add a new task..." class="input" />
-        <input type="date" id="taskDueDate" class="date-input" title="Set due date" /> <!-- Added this line -->
+  
         <button id="addTaskButton" class="button">Add Task</button>
       </div>
-      <div class="task-control-row">
+      <div class="task-control-row">          
+              <input type="date" id="taskDueDate" class="date-input" title="Set due date" /> <!-- Added this line -->
             <select id="categorySelect" class="select-box" aria-label="Select task category">
-                <option value="Personal">Personal</option>
-                <option value="Work">Work</option>
-                <option value="Health">Health</option>
+                <option value="Personal">🧑 Personal</option>
+                <option value="Work">💻 Work</option>
+                <option value="Health">🫡 Health</option>
+                <option value="Finance">💵 Finance</option>
                 <option value="__custom__">Add New Category…</option>
             </select>
             <select id="prioritySelect" class="select-box" aria-label="Select task priority">
-                <option value="Low">⚡ Low</option>
-                <option value="Medium" selected>⚡ Medium</option>
-                <option value="High">⚡ High</option>
-                <option value="__custom__">Add New Priority…</option>
-            </select>
+                <option value="Low">🔵 Low</option>
+                <option value="Medium" selected>🟡 Medium</option>
+                <option value="High">🟠 High</option>
+                <option value="Urgent">🔴 Urgent</option>
+                <option value="__custom__">⚪ Add New Priority…</option>
+            </select>  
+
 </div>
 <hr class="custom-hr" />
+
             <div id="taskCountToday" class="task-counter-line">
                 <div class="task-counter-content">
                     <div class="counter-text">
