@@ -395,6 +395,7 @@ const stopButton = document.getElementById("stopButton");
 
 // NEW: Get the audio element for timer end sound
 const timerEndSound = document.getElementById('timerEndSound');
+console.log('Audio element found:', timerEndSound);
 
 // NEW: Function to request notification permission
 function requestNotificationPermission() {
@@ -414,21 +415,18 @@ function requestNotificationPermission() {
 
 // NEW: Function to handle actions when the main timer finishes
 function timerFinished() {
-    // Play sound
-    if (timerEndSound) {
-        timerEndSound.play().catch(e => console.error("Error playing sound:", e));
-    }
+    console.log("Timer finished! Attempting to play sound...");
+    const timerEndSound = document.getElementById('timerEndSound'); // Re-get the element here for safety
+    console.log('Is audio element ready for playback?', timerEndSound);
+    console.log('Audio src:', timerEndSound ? timerEndSound.src : 'N/A');
 
-    // Show browser notification
-    if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("FocusFlow Timer", {
-            body: "Your main timer has finished!",
-            icon: "./assets/logo.png" // Optional: Path to a small icon for the notification
-                                         // Make sure this path is correct, or remove 'icon' if you don't have one.
+    if (timerEndSound) {
+        timerEndSound.play().catch(e => {
+            console.error("Error playing sound:", e);
+            // This will log if autoplay is blocked or other issues occur
         });
     } else {
-        // Fallback for browsers without notification support or if permission denied
-        showCustomAlert("Time's up!"); // Using your custom alert
+        console.error("Audio element (timerEndSound) not found when trying to play!");
     }
 
     // Reset timer display and buttons (existing logic)
