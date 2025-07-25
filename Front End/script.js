@@ -45,15 +45,10 @@ async function migrateGuestDataToSupabase() {
             category: task.category,
             priority: task.priority,
             elapsed: task.elapsed,
-            due_date: task.dueDate || null, // Include dueDate from guest task
-            // You might want to preserve created_at or other fields from guest task if available
-            // For now, let Supabase set created_at on insert
+            due_date: task.due_date || null, // Use due_date for consistency
+            position: task.position || 0, // Include position
         }));
 
-        // Using insert with ignoreDuplicates to avoid issues if a user logs in multiple times
-        // and some data was already migrated (requires unique constraint on user_id + task_id or similar)
-        // For simplicity, we're just inserting. If you want to prevent exact duplicates,
-        // you'd need to fetch existing tasks first and filter.
         const { error: tasksError } = await supabase.from("tasks").insert(tasksToInsert, { ignoreDuplicates: true });
         if (tasksError) {
             console.error("Error migrating guest tasks:", tasksError.message);
@@ -67,7 +62,7 @@ async function migrateGuestDataToSupabase() {
         console.log("Migrating guest note to Supabase...");
         const { error: noteError } = await supabase.from("notes").upsert(
             { user_id: currentUser.id, content: guestNote, updated_at: new Date().toISOString() },
-            { onConflict: 'user_id' } // Upsert based on user_id ensures only one note per user
+            { onConflict: 'user_id' }
         );
         if (noteError) {
             console.error("Error migrating guest note:", noteError.message);
@@ -85,12 +80,11 @@ async function signInUser(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     console.error("Login failed:", error.message);
-    // Replace alert with a custom modal or message display
-    showCustomAlert("Login failed: " + error.message);
+    showCustomAlert("Login failed: " + error.message); // Replaced alert
   } else {
     console.log("Logged in:", data);
-    await migrateGuestDataToSupabase(); // Migrate any existing guest data
-    await checkUserAndLoadApp(); // Reload app state with user data
+    await migrateGuestDataToSupabase();
+    await checkUserAndLoadApp();
   }
 }
 
@@ -98,89 +92,73 @@ async function signUpUser(email, password) {
   const { error } = await supabase.auth.signUp({ email, password });
   if (error) {
     console.error("Signup failed:", error.message);
-    // Replace alert with a custom modal or message display
-    showCustomAlert("Signup failed: " + error.message);
+    showCustomAlert("Signup failed: " + error.message); // Replaced alert
   } else {
-    // Replace alert with a custom modal or message display
-    showCustomAlert("Signup successful – check your email to confirm");
-    // If auto-login after signup is enabled in Supabase, checkUserAndLoadApp will handle it.
-    // Otherwise, user needs to confirm email and then log in, at which point migration happens.
-    await migrateGuestDataToSupabase(); // Migrate immediately if auto-login occurs
+    showCustomAlert("Signup successful – check your email to confirm"); // Replaced alert
+    await migrateGuestDataToSupabase();
     await checkUserAndLoadApp();
   }
 }
 
 async function signOutUser() {
   await supabase.auth.signOut();
-  currentUser = null; // Clear current user status
-  location.reload(); // Reloads the page to go back to guest/auth section
+  currentUser = null;
+  location.reload();
 }
 
 async function resetPasswordForEmailUser(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + "/reset.html" // CORRECTED URL
+    redirectTo: window.location.origin + "/reset.html"
   });
 
   if (error) {
-    // Replace alert with a custom modal or message display
-    showCustomAlert("Error sending password setup email: " + error.message);
+    showCustomAlert("Error sending password setup email: " + error.message); // Replaced alert
   } else {
-    // Replace alert with a custom modal or message display
-    showCustomAlert("Check your inbox to set your password.");
+    showCustomAlert("Check your inbox to set your password."); // Replaced alert
   }
 }
 
 
 async function checkUserAndLoadApp() {
-  const { data: { user } = {} } = await supabase.auth.getUser(); // Destructure with default empty object
+  const { data: { user } = {} } = await supabase.auth.getUser();
 
-  const authSection = document.getElementById("auth-section"); // This seems to refer to the main auth form, not nav
+  const authSection = document.getElementById("auth-section");
   const appSection = document.getElementById("app-section");
   const guestModeMessage = document.getElementById("guestModeMessage");
-  const logoutBtn = document.getElementById("logoutBtn");
-  const authStatusDisplay = document.getElementById("authStatusDisplay"); // This ID does not exist in your HTML, consider using userEmailDisplay
 
-  // New: Get references for auth and user nav item containers
   const authNavItems = document.getElementById("auth-nav-items");
   const userNavItems = document.getElementById("user-nav-items");
-  const userEmailDisplay = document.getElementById("userEmailDisplay"); // Corrected ID based on HTML
+  const userEmailDisplay = document.getElementById("userEmailDisplay");
 
-  // If user is logged in via Supabase
   if (user) {
     currentUser = user;
-    if (authSection) authSection.style.display = "none"; // Hide main auth form
-    if (appSection) appSection.style.display = "block";  // Show app content
+    if (authSection) authSection.style.display = "none";
+    if (appSection) appSection.style.display = "block";
     if (guestModeMessage) guestModeMessage.style.display = "none";
 
-    // Show user-specific nav items, hide auth forms
     if (authNavItems) authNavItems.style.display = "none";
-    if (userNavItems) userNavItems.style.display = "flex"; // Use flex as it's a horizontal nav
+    if (userNavItems) userNavItems.style.display = "flex";
     if (userEmailDisplay) userEmailDisplay.textContent = `Logged in as: ${user.email}`;
 
   } else {
-    // No Supabase user logged in. Act as a guest.
     currentUser = null;
 
-    // Show auth forms, hide user-specific nav items
-    if (authNavItems) authNavItems.style.display = "flex"; // Show login/signup options
+    if (authNavItems) authNavItems.style.display = "flex";
     if (userNavItems) userNavItems.style.display = "none";
-    if (authSection) authSection.style.display = "block"; // Always show login options for guests (if it's the main auth form)
-    if (appSection) appSection.style.display = "block";  // Always show app content for guests
+    if (authSection) authSection.style.display = "block";
+    if (appSection) appSection.style.display = "block";
 
     const hasGuestData = getGuestTasks().length > 0 || getGuestNote().length > 0;
     if (guestModeMessage) {
         guestModeMessage.style.display = hasGuestData ? "block" : "none";
     }
-    // Set status display for guest mode
-    if (userEmailDisplay) userEmailDisplay.textContent = "Guest Mode"; // Use the existing userEmailDisplay for consistency
+    if (userEmailDisplay) userEmailDisplay.textContent = "Guest Mode";
   }
   await loadTasks();
   await loadNote();
 }
 
 // --- Data Persistence Functions (Conditional Logic) ---
-// These functions will now automatically use Supabase if currentUser is set,
-// and localStorage if currentUser is null.
 
 async function loadTasks() {
     const taskList = document.getElementById("taskList");
@@ -188,12 +166,12 @@ async function loadTasks() {
 
     let tasks = [];
     if (currentUser) {
-        // Load from Supabase
         const { data: supabaseTasks, error } = await supabase
             .from("tasks")
             .select("*")
             .eq("user_id", currentUser.id)
-            .order("created_at", { ascending: false });
+            .order("position", { ascending: true }) // Order by position for drag & drop
+            .order("created_at", { ascending: false }); // Fallback order
 
         if (error) {
             console.error("Failed to load tasks from Supabase:", error.message);
@@ -202,8 +180,9 @@ async function loadTasks() {
         tasks = supabaseTasks;
         console.log("Loaded tasks from Supabase:", tasks);
     } else {
-        // Load from Local Storage (Guest Mode)
         tasks = getGuestTasks();
+        // Ensure guest tasks are also sorted by position if available, otherwise by creation
+        tasks.sort((a, b) => (a.position || 0) - (b.position || 0) || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
         console.log("Loaded tasks from Local Storage (Guest Mode):", tasks);
     }
     renderTasks(tasks);
@@ -212,8 +191,12 @@ async function loadTasks() {
 
 async function addTask(content, category = "Personal", priority = "Medium", dueDate = null) {
     let newTask = null;
+    const taskList = document.getElementById("taskList");
+    // Determine the highest current position to add the new task at the end
+    const lastTaskPosition = taskList.children.length > 0 ?
+        parseInt(taskList.children[taskList.children.length - 1].dataset.position) + 1 : 0;
+
     if (currentUser) {
-        // Add to Supabase
         const { data, error } = await supabase.from("tasks").insert([
             {
                 user_id: currentUser.id,
@@ -222,9 +205,10 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
                 category: category,
                 priority: priority,
                 elapsed: 0,
-                due_date: dueDate, // Save the due date for Supabase
+                due_date: dueDate, // Save the due date
+                position: lastTaskPosition, // Set initial position
             },
-        ]).select(); // .select() returns the inserted data
+        ]).select();
 
         if (error) {
             console.error("Add task to Supabase failed:", error.message);
@@ -232,59 +216,55 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
         }
         newTask = data[0];
     } else {
-        // Add to Local Storage (Guest Mode)
         const guestTasks = getGuestTasks();
         newTask = {
-            id: Date.now(), // Simple unique ID for guest tasks (critical for guest delete/update)
+            id: Date.now(),
             content: content,
             is_done: false,
             category: category,
             priority: priority,
             elapsed: 0,
-            created_at: new Date().toISOString(), // Add timestamp for consistency
-            dueDate: dueDate, // Save the due date for guest mode
+            created_at: new Date().toISOString(),
+            due_date: dueDate, // Save the due date (consistent naming)
+            position: lastTaskPosition, // Set initial position
         };
         guestTasks.push(newTask);
         saveGuestTasks(guestTasks);
         console.log("Added task to Local Storage (Guest Mode):", newTask);
     }
-    return newTask; // Return the created task (with ID) for UI rendering
+    return newTask;
 }
 
 async function deleteTask(id) {
     if (currentUser) {
-        // Delete from Supabase
         const { error } = await supabase
             .from("tasks")
             .delete()
             .eq("id", id)
-            .eq("user_id", currentUser.id); // Ensure only user's own tasks are deleted
+            .eq("user_id", currentUser.id);
 
         if (error) console.error("Failed to delete task from Supabase:", error.message);
     } else {
-        // Delete from Local Storage (Guest Mode)
         let guestTasks = getGuestTasks();
-        // Ensure id is compared correctly (it's a number from Date.now() for guest tasks)
-        guestTasks = guestTasks.filter(task => task.id !== Number(id)); // <--- MODIFIED
+        guestTasks = guestTasks.filter(task => task.id !== Number(id));
         saveGuestTasks(guestTasks);
         console.log("Deleted task from Local Storage (Guest Mode):", id);
     }
+    await updateTaskPositionsInDB(); // Re-save positions after deletion
 }
 
 async function saveNote(content) {
     if (currentUser) {
-        // Save to Supabase
         const { error } = await supabase.from("notes").upsert([
             {
                 user_id: currentUser.id,
                 content: content,
                 updated_at: new Date().toISOString(),
             },
-        ], { onConflict: 'user_id' }); // Upsert by user_id ensures only one note per user
+        ], { onConflict: 'user_id' });
 
         if (error) console.error("Failed to save note to Supabase:", error.message);
     } else {
-        // Save to Local Storage (Guest Mode)
         saveGuestNote(content);
         console.log("Saved note to Local Storage (Guest Mode).");
     }
@@ -296,29 +276,26 @@ async function loadNote() {
 
     let noteContent = '';
     if (currentUser) {
-        // Load from Supabase
         const { data, error } = await supabase
             .from("notes")
             .select("content")
             .eq("user_id", currentUser.id)
             .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 means "No rows found"
+        if (error && error.code !== 'PGRST116') {
             console.error("Failed to load note from Supabase:", error.message);
             return;
         }
         noteContent = data?.content || '';
         console.log("Loaded note from Supabase:", noteContent);
     } else {
-        // Load from Local Storage (Guest Mode)
         noteContent = getGuestNote();
         console.log("Loaded note from Local Storage (Guest Mode):", noteContent);
     }
     notesArea.value = noteContent;
 }
 
-
-// --- Helper / UI Functions (largely unchanged, but ensure they call the conditional data functions) ---
+// --- Helper / UI Functions ---
 
 function renderTasks(tasks) {
   const taskList = document.getElementById("taskList");
@@ -326,12 +303,51 @@ function renderTasks(tasks) {
     console.error("Task list element not found!");
     return;
   }
-  taskList.innerHTML = ""; // Clear existing tasks
+  taskList.innerHTML = "";
   tasks.forEach(task => {
     const li = createTaskElement(task);
     taskList.appendChild(li);
   });
 }
+
+// Function to update task positions in the database/local storage
+async function updateTaskPositionsInDB() {
+    const taskList = document.getElementById("taskList");
+    if (!taskList) return;
+
+    const tasksInOrder = Array.from(taskList.children).map((li, index) => {
+        return {
+            id: Number(li.dataset.taskId),
+            position: index,
+        };
+    });
+
+    if (currentUser) {
+        // Update positions in Supabase
+        const { error } = await supabase.from("tasks").upsert(
+            tasksInOrder.map(task => ({
+                id: task.id,
+                user_id: currentUser.id, // Ensure user_id is included for RLS
+                position: task.position,
+            })),
+            { onConflict: 'id' } // Conflict on 'id' to update existing rows
+        );
+        if (error) console.error("Failed to update task positions in Supabase:", error.message);
+        else console.log("Task positions updated in Supabase.");
+    } else {
+        // Update positions in Local Storage
+        let guestTasks = getGuestTasks();
+        tasksInOrder.forEach(updatedTask => {
+            const taskIndex = guestTasks.findIndex(t => t.id === updatedTask.id);
+            if (taskIndex !== -1) {
+                guestTasks[taskIndex].position = updatedTask.position;
+            }
+        });
+        saveGuestTasks(guestTasks);
+        console.log("Task positions updated in Local Storage (Guest Mode).");
+    }
+}
+
 
 function updateTaskCounter() {
   const taskList = document.getElementById("taskList");
@@ -352,7 +368,7 @@ const storedTheme = localStorage.getItem("theme");
 // Apply stored theme on load
 if (storedTheme) {
     document.body.setAttribute("data-theme", storedTheme);
-    if (themeToggleBtn) { // Check if button exists before setting aria-pressed
+    if (themeToggleBtn) {
         themeToggleBtn.setAttribute("aria-pressed", storedTheme === "dark");
     }
 }
@@ -367,7 +383,7 @@ if (themeToggleBtn) {
     });
 }
 
-// Timer variables and functions (from your original code)
+// Timer variables and functions
 let time = 0;
 let timerInterval;
 const timerElement = document.getElementById("timer");
@@ -487,7 +503,7 @@ async function startTaskTimer(li) { // Made async to save elapsed time
             } else {
                 // Update guest task in localStorage
                 let guestTasks = getGuestTasks();
-                const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId)); // <--- MODIFIED
+                const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId));
                 if (taskIndex !== -1) {
                     guestTasks[taskIndex].elapsed = elapsed;
                     saveGuestTasks(guestTasks);
@@ -525,7 +541,7 @@ async function stopTaskTimer(li) { // Made async for saving
         } else {
             // Update guest task in localStorage
             let guestTasks = getGuestTasks();
-            const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId)); // <--- MODIFIED
+            const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId));
             if (taskIndex !== -1) {
                 guestTasks[taskIndex].elapsed = finalElapsed;
                 saveGuestTasks(guestTasks);
@@ -543,20 +559,18 @@ function getTodayDateString() {
     return `${year}-${month}-${day}`;
 }
 
-
 function createTaskElement(task) {
     const li = document.createElement("li");
     li.draggable = true;
 
     li.dataset.category = task.category || "";
     li.dataset.elapsed = task.elapsed || 0;
-    li.dataset.taskId = task.id; // CRITICAL: Use task.id from Supabase or generated for guest
+    li.dataset.taskId = task.id;
     li.dataset.priority = task.priority || "Medium";
-    // Use || to check both due_date (Supabase) and dueDate (guest)
-    li.dataset.dueDate = task.due_date || task.dueDate || ""; // Store due date consistently
+    li.dataset.position = task.position || 0; // Store position
 
     // Apply date-related classes
-    const taskDueDate = li.dataset.dueDate;
+    const taskDueDate = task.due_date; // Use task.due_date directly
     if (taskDueDate) {
         const todayDateString = getTodayDateString();
         if (taskDueDate === todayDateString) {
@@ -581,7 +595,7 @@ function createTaskElement(task) {
         } else {
           taskList.appendChild(li);
         }
-        stopTaskTimer(li); // Stop timer if task is finished
+        stopTaskTimer(li);
       } else {
         li.classList.remove("finished");
         const firstUnfinished = [...taskList.children].find(item => !item.classList.contains("finished"));
@@ -592,7 +606,6 @@ function createTaskElement(task) {
         }
       }
 
-      // Update Supabase/LocalStorage task status
       const taskId = li.dataset.taskId;
       if (taskId) {
         if (currentUser) {
@@ -604,13 +617,14 @@ function createTaskElement(task) {
             if (error) console.error("Update error (Supabase):", error.message);
         } else {
             let guestTasks = getGuestTasks();
-            const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId)); // <--- MODIFIED
+            const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId));
             if (taskIndex !== -1) {
                 guestTasks[taskIndex].is_done = checkbox.checked;
                 saveGuestTasks(guestTasks);
             }
         }
       }
+      await updateTaskPositionsInDB(); // Update positions after checkbox change
       updateTaskCounter();
     });
 
@@ -627,82 +641,78 @@ function createTaskElement(task) {
     // Due Date Display
     const dueDateDisplay = document.createElement("span");
     dueDateDisplay.classList.add("due-date-display");
-    // Use li.dataset.dueDate for display, which is set from either task.due_date or task.dueDate
-    if (li.dataset.dueDate) {
-        // Format date for display (e.g., YYYY-MM-DD to DD/MM/YYYY)
-        const dateParts = li.dataset.dueDate.split('-');
-        dueDateDisplay.textContent = `🗓️ ${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-    } else {
-        dueDateDisplay.textContent = ""; // No date set
-    }
     dueDateDisplay.style.cursor = "pointer";
-    dueDateDisplay.title = "Click to change due date";
+    dueDateDisplay.title = "Click to set/change due date";
 
-    dueDateDisplay.addEventListener('click', async () => {
-        const currentDueDate = li.dataset.dueDate || ''; // Read from dataset
-        const dateInput = document.createElement('input');
-        dateInput.type = 'date';
-        dateInput.value = currentDueDate;
-        dateInput.classList.add('task-edit-input'); // Reuse existing style
+    // Due Date Input
+    const dueDateInput = document.createElement("input");
+    dueDateInput.type = "date";
+    dueDateInput.classList.add("date-input");
+    dueDateInput.value = task.due_date || ''; // Initialize with task's due_date
+    dueDateInput.style.display = 'none'; // Initially hidden
 
-        dueDateDisplay.replaceWith(dateInput);
-        dateInput.focus();
+    function updateDueDateDisplayAndClasses() {
+        if (task.due_date) {
+            const date = new Date(task.due_date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normalize to start of day
 
-        async function saveDueDate() {
-            const newDueDate = dateInput.value;
-            // Update the task object and dataset
-            if (currentUser) {
-                task.due_date = newDueDate; // Update Supabase property
-            } else {
-                task.dueDate = newDueDate; // Update guest property
+            const taskDate = new Date(date);
+            taskDate.setHours(0, 0, 0, 0); // Normalize to start of day
+
+            const diffTime = taskDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            dueDateDisplay.textContent = `📅 ${date.toLocaleDateString()}`;
+            li.classList.remove("task-due-today", "task-overdue"); // Remove existing classes
+
+            if (diffDays === 0) {
+                li.classList.add("task-due-today");
+            } else if (diffDays < 0) {
+                li.classList.add("task-overdue");
             }
-            li.dataset.dueDate = newDueDate; // Update dataset
+        } else {
+            dueDateDisplay.textContent = "📅 No due date";
+            li.classList.remove("task-due-today", "task-overdue");
+        }
+    }
 
-            if (newDueDate) {
-                const dateParts = newDueDate.split('-');
-                dueDateDisplay.textContent = `🗓️ ${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-            } else {
-                dueDateDisplay.textContent = "";
-            }
-            dateInput.replaceWith(dueDateDisplay);
+    dueDateDisplay.addEventListener("click", () => {
+        dueDateDisplay.style.display = 'none';
+        dueDateInput.style.display = 'inline-block'; // Show input
+        dueDateInput.focus();
+    });
 
-            // Update Supabase/LocalStorage
-            if (currentUser) {
-                const { error } = await supabase
-                    .from("tasks")
-                    .update({ due_date: newDueDate || null })
-                    .eq("id", task.id)
-                    .eq("user_id", currentUser.id);
-                if (error) console.error("Failed to update due date (Supabase):", error.message);
-            } else {
-                let guestTasks = getGuestTasks();
-                const taskIndex = guestTasks.findIndex(t => t.id == task.id);
-                if (taskIndex !== -1) {
-                    guestTasks[taskIndex].dueDate = newDueDate; // Save to guest property
-                    saveGuestTasks(guestTasks);
-                }
-            }
-            // Update classes based on new date
-            li.classList.remove('task-due-today', 'task-overdue'); // Clear existing classes
-            if (newDueDate) {
-                const todayDateString = getTodayDateString();
-                if (newDueDate === todayDateString) {
-                    li.classList.add('task-due-today');
-                } else if (newDueDate < todayDateString) {
-                    li.classList.add('task-overdue');
-                }
+    dueDateInput.addEventListener("change", async () => {
+        const newDueDate = dueDateInput.value; // YYYY-MM-DD string
+        task.due_date = newDueDate || null; // Update task object
+
+        // Update Supabase/LocalStorage
+        if (currentUser) {
+            const { error } = await supabase
+                .from("tasks")
+                .update({ due_date: task.due_date })
+                .eq("id", task.id)
+                .eq("user_id", currentUser.id);
+            if (error) console.error("Failed to update due date (Supabase):", error.message);
+        } else {
+            let guestTasks = getGuestTasks();
+            const taskIndex = guestTasks.findIndex(t => t.id == task.id);
+            if (taskIndex !== -1) {
+                guestTasks[taskIndex].due_date = task.due_date; // Save to guest property
+                saveGuestTasks(guestTasks);
             }
         }
-
-        dateInput.addEventListener('blur', saveDueDate);
-        dateInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                dateInput.blur(); // Trigger blur to save
-            } else if (e.key === 'Escape') {
-                dateInput.replaceWith(dueDateDisplay); // Discard changes
-            }
-        });
+        updateDueDateDisplayAndClasses(); // Update display and classes immediately
     });
+
+    dueDateInput.addEventListener("blur", () => {
+        dueDateInput.style.display = 'none';
+        dueDateDisplay.style.display = 'inline-block'; // Show display
+        updateDueDateDisplayAndClasses(); // Ensure display is updated when blurring input
+    });
+
+    updateDueDateDisplayAndClasses(); // Initial call to set display and classes
 
 
     // Category label
@@ -880,10 +890,11 @@ editBtn.setAttribute('aria-label', 'Edit task');
 
       categoryLabel.style.display = "none";
       priorityLabel.style.display = "none";
+      dueDateDisplay.style.display = "none";
+      dueDateInput.style.display = "none";
       timerDisplay.style.display = "none";
       startTimerBtn.style.display = "none";
       stopTimerBtn.style.display = "none";
-      dueDateDisplay.style.display = "none"; // Hide due date display during edit
 
       span.replaceWith(input);
       input.focus();
@@ -894,7 +905,6 @@ editBtn.setAttribute('aria-label', 'Edit task');
           span.innerHTML = marked.parse(val);
           span.setAttribute("data-raw", val);
           span.className = "task-text";
-          // Update Supabase/LocalStorage
           if (currentUser) {
               const { error } = await supabase
                 .from("tasks")
@@ -915,10 +925,11 @@ editBtn.setAttribute('aria-label', 'Edit task');
 
         categoryLabel.style.display = "";
         priorityLabel.style.display = "";
+        dueDateDisplay.style.display = "";
+        // dueDateInput.style.display = ""; // No need to explicitly show, display will handle it
         timerDisplay.style.display = "";
         startTimerBtn.style.display = "";
         stopTimerBtn.style.display = "";
-        dueDateDisplay.style.display = ""; // Show due date display after edit
       }
 
       input.addEventListener("blur", save);
@@ -928,10 +939,11 @@ editBtn.setAttribute('aria-label', 'Edit task');
           input.replaceWith(span);
           categoryLabel.style.display = "";
           priorityLabel.style.display = "";
+          dueDateDisplay.style.display = "";
+          // dueDateInput.style.display = "";
           timerDisplay.style.display = "";
           startTimerBtn.style.display = "";
           stopTimerBtn.style.display = "";
-          dueDateDisplay.style.display = ""; // Show due date display after cancel
         }
       });
     });
@@ -959,8 +971,7 @@ editBtn.setAttribute('aria-label', 'Edit task');
     deleteBtn.textContent = "X";
     deleteBtn.classList.add("delete-button");
     deleteBtn.addEventListener("click", async () => {
-      // Replace confirm with a custom modal
-      showCustomConfirm("Are you sure you want to delete this task?", async () => {
+      showCustomConfirm("Are you sure you want to delete this task?", async () => { // Replaced confirm
           const taskId = li.dataset.taskId;
           if (activeTaskId && activeTaskId.dataset.taskId === taskId) {
             stopTaskTimer(li);
@@ -974,44 +985,37 @@ editBtn.setAttribute('aria-label', 'Edit task');
     });
 
 
-    // Drag & drop handlers (These seem mostly correct but review for subtle issues)
+    // Drag & drop handlers
     li.addEventListener("dragstart", e => {
       li.classList.add("dragging");
       e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", null);
+      e.dataTransfer.setData("text/plain", null); // Set data to bypass Firefox issue
     });
     li.addEventListener("dragend", () => {
       li.classList.remove("dragging");
       [...taskList.children].forEach(item => item.classList.remove("dragover"));
-      // Save the new order after dragend
-      if (!currentUser) { // Only for guest mode for now
-          const updatedGuestTasks = Array.from(taskList.children).map(taskLi => {
-              const taskId = Number(taskLi.dataset.taskId);
-              // Find the original task object from the current guest tasks
-              const originalTask = getGuestTasks().find(t => t.id === taskId);
-              return originalTask;
-          }).filter(Boolean); // Filter out any null/undefined if task not found
-          saveGuestTasks(updatedGuestTasks);
-      }
+      updateTaskPositionsInDB(); // Save positions after dragend
     });
     li.addEventListener("dragover", e => {
       e.preventDefault();
       const dragging = taskList.querySelector(".dragging");
       if (li === dragging) return;
 
-      [...taskList.children].forEach(item => item.classList.remove("dragover"));
+      [...taskList.children].forEach(item => {
+          item.classList.remove("dragover");
+          item.style.borderTop = "";
+          item.style.borderBottom = "";
+      });
 
       const rect = li.getBoundingClientRect();
       const offset = e.clientY - rect.top;
 
       if (offset < rect.height / 2) {
         li.classList.add("dragover");
-        li.style.borderTop = "2px solid #007bff";
-        li.style.borderBottom = "";
+        li.style.borderTop = "2px solid var(--highlight-color)";
       } else {
         li.classList.add("dragover");
-        li.style.borderBottom = "2px solid #007bff";
-        li.style.borderTop = "";
+        li.style.borderBottom = "2px solid var(--highlight-color)";
       }
     });
     li.addEventListener("dragleave", () => {
@@ -1036,14 +1040,15 @@ editBtn.setAttribute('aria-label', 'Edit task');
       } else {
         taskList.insertBefore(dragging, li.nextSibling);
       }
-      // The save logic is now in dragend, which is more reliable for final position
+      // Positions will be updated in dragend
     });
 
     // Append elements
     li.appendChild(checkbox);
     li.appendChild(span);
     li.appendChild(editBtn);
-    li.appendChild(dueDateDisplay); // Moved to appear before category and priority
+    li.appendChild(dueDateDisplay); // Append the display first
+    li.appendChild(dueDateInput); // Append the input (hidden)
     li.appendChild(categoryLabel);
     li.appendChild(priorityLabel);
     li.appendChild(timerDisplay);
@@ -1058,15 +1063,15 @@ async function addTaskFromInput() {
     const taskInput = document.getElementById("taskInput");
     const categorySelect = document.getElementById("categorySelect");
     const prioritySelect = document.getElementById("prioritySelect");
-    const dueDateInput = document.getElementById("dueDateInput"); // Get the new due date input
-    const taskList = document.getElementById("taskList"); // Get taskList inside this scope
+    const dueDateInput = document.getElementById("taskDueDate"); // Get the new due date input
+    const taskList = document.getElementById("taskList");
 
     const taskText = taskInput.value.trim();
     if (!taskText) return;
 
     const category = categorySelect.value;
     const priority = prioritySelect.value;
-    const dueDate = dueDateInput.value; // Get the due date
+    const dueDate = dueDateInput.value || null; // Get the due date
 
     const newTask = await addTask(taskText, category, priority, dueDate);
     if (!newTask) return;
@@ -1256,7 +1261,6 @@ function init() {
       const markdown = notesInput.value;
       const html = marked.parse(markdown);
       notesOutput.innerHTML = html;
-      // saveNote(markdown); // No need to save on every input, only on blur/close
     }
   }
   notesInput?.addEventListener('input', renderNotesMarkdown);
@@ -1266,24 +1270,23 @@ function init() {
 
 
   // --- Reset / Clear Buttons ---
-  const taskList = document.getElementById("taskList"); // Ensure taskList is available in this scope
+  const taskList = document.getElementById("taskList");
 
   document.getElementById('resetCountBtn')?.addEventListener('click', async () => {
-    // Replace confirm with custom modal
-    showCustomConfirm("Are you sure you want to delete ALL tasks? This cannot be undone.", async () => {
+    showCustomConfirm("Are you sure you want to delete ALL tasks? This cannot be undone.", async () => { // Replaced confirm
         if (currentUser) {
             const { error } = await supabase.from('tasks').delete().eq('user_id', currentUser.id);
             if (error) console.error("Error resetting all tasks for user:", error.message);
             else {
                 renderTasks([]); // Clear UI
                 updateTaskCounter();
-                showCustomAlert("All tasks reset for your account.");
+                showCustomAlert("All tasks reset for your account."); // Replaced alert
             }
         } else {
             saveGuestTasks([]); // Clear localStorage tasks
             renderTasks([]); // Clear UI
             updateTaskCounter();
-            showCustomAlert("All tasks reset for guest mode (on this device).");
+            showCustomAlert("All tasks reset for guest mode (on this device)."); // Replaced alert
         }
     });
   });
@@ -1295,7 +1298,7 @@ function init() {
     finishedTasksElements.forEach(li => {
       const taskId = li.dataset.taskId;
       if (taskId) {
-        tasksToDeleteIds.push(Number(taskId)); // <--- MODIFIED: Convert to Number for comparison
+        tasksToDeleteIds.push(Number(taskId));
       }
       li.remove(); // Remove from DOM immediately
     });
@@ -1312,12 +1315,11 @@ function init() {
         else console.log("Finished tasks deleted from Supabase.");
       } else {
         let guestTasks = getGuestTasks();
-        // Filter out tasks whose IDs are in the tasksToDeleteIds array
-        guestTasks = guestTasks.filter(task => !tasksToDeleteIds.includes(task.id)); // <--- MODIFIED
+        guestTasks = guestTasks.filter(task => !tasksToDeleteIds.includes(task.id));
         saveGuestTasks(guestTasks);
-        console.log("Finished tasks deleted from Local Storage.");
       }
     }
+    await updateTaskPositionsInDB(); // Update positions after deleting finished tasks
     updateTaskCounter();
   });
 
@@ -1327,8 +1329,7 @@ function init() {
 
   categorySelect?.addEventListener("change", () => {
     if (categorySelect.value === "__custom__") {
-      // Replace prompt with custom modal
-      showCustomPrompt("Enter new category name:", (newCategory) => {
+      showCustomPrompt("Enter new category name:", (newCategory) => { // Replaced prompt
           if (newCategory && newCategory.trim()) {
             const trimmedCategory = newCategory.trim();
             const exists = Array.from(categorySelect.options).some(
@@ -1341,20 +1342,19 @@ function init() {
               categorySelect.insertBefore(newOption, categorySelect.lastElementChild);
               categorySelect.value = trimmedCategory;
             } else {
-              showCustomAlert("That category already exists.");
+              showCustomAlert("That category already exists."); // Replaced alert
               categorySelect.value = "Personal";
             }
           } else {
             categorySelect.value = "Personal";
           }
-      }, "Personal"); // Default value for prompt
+      }, "Personal");
     }
   });
 
   prioritySelect?.addEventListener("change", () => {
     if (prioritySelect.value === "__custom__") {
-      // Replace prompt with custom modal
-      showCustomPrompt("Enter new priority:", (newPriority) => {
+      showCustomPrompt("Enter new priority:", (newPriority) => { // Replaced prompt
           if (newPriority && newPriority.trim()) {
             const trimmedPriority = newPriority.trim();
             const exists = Array.from(prioritySelect.options).some(
@@ -1367,13 +1367,13 @@ function init() {
               prioritySelect.insertBefore(newOption, prioritySelect.lastElementChild);
               prioritySelect.value = trimmedPriority;
             } else {
-              showCustomAlert("That priority already exists.");
+              showCustomAlert("That priority already exists."); // Replaced alert
               prioritySelect.value = "Medium";
             }
           } else {
             prioritySelect.value = "Medium";
           }
-      }, "Medium"); // Default value for prompt
+      }, "Medium");
     }
   });
 

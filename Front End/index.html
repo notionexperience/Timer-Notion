@@ -13,78 +13,66 @@
       <h1 class="nav-title">FocusFlow</h1>
       <button id="themeToggle" class="nav-button theme-toggle" aria-pressed="false" aria-label="Toggle theme">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-        <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z" />
-    </svg>
-</button>
-<button id="toggleNotes" class="nav-button notes-toggle" aria-label="Toggle notes sidebar">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-        <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
-        <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
+        <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 0 0 0 1.061l1.591 1.59a.75.75 0 0 0 1.06-1.06ZM12 18.75a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0v-2.25a.75.75 0 0 1 .75-.75ZM5.166 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM18.75 12a.75.75 0 0 1 .75-.75h2.25a.75.75 0 0 1 0 1.5h-2.25a.75.75 0 0 1-.75-.75ZM6.166 5.106a.75.75 0 0 0-1.06-1.061l-1.591 1.59a.75.75 0 0 0 1.061 1.06l1.59-1.591ZM3 12a.75.75 0 0 1-.75-.75H.75a.75.75 0 0 1 0 1.5h1.5a.75.75 0 0 1 .75-.75Zm7.75-5.25a.75.75 0 0 0-1.5 0v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75V6.75ZM12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm2.25 1.5a.75.75 0 0 0 0-1.5v.008c0-.414.336-.75.75-.75h.008a.75.75 0 0 0 .75.75v-.008a.75.75 0 0 0-.75-.75H14.25Z" />
     </svg>
 </button>
     </div>
-
     <div class="nav-right">
-
-
+      <span id="userEmailDisplay" class="user-email">Guest Mode</span>
       <div id="auth-nav-items">
-        <input type="email" id="emailInput" placeholder="Email" aria-label="Email" />
-        <input type="password" id="passwordInput" placeholder="Password" aria-label="Password" />
-        <button id="signInBtn" class="nav-button">Log In</button>
+        <input type="email" id="emailInput" placeholder="Email" class="nav-input" />
+        <input type="password" id="passwordInput" placeholder="Password" class="nav-input" />
+        <button id="signInBtn" class="nav-button">Sign In</button>
         <button id="signUpBtn" class="nav-button">Sign Up</button>
-        <button id="sendResetEmailBtn" class="nav-button">Set Password</button>
+        <button id="sendResetEmailBtn" class="nav-button">Forgot Password?</button>
       </div>
-
       <div id="user-nav-items" style="display: none;">
-        <span id="userEmailDisplay" class="user-email"></span>
         <button id="logoutBtn" class="nav-button">Logout</button>
       </div>
+      <button id="toggleNotes" class="nav-button notes-toggle" aria-label="Toggle notes sidebar">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+          <path fill-rule="evenodd" d="M12 2.25a.75.75 0 0 1 .75.75v9a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM6.166 5.106a.75.75 0 0 1 0 1.06L3.39 9.24a.75.75 0 0 1-1.06-1.06L5.106 5.106a.75.75 0 0 1 1.06 0Zm11.668 0a.75.75 0 0 1 0 1.06L20.61 9.24a.75.75 0 0 1-1.06-1.06l-2.775-2.775a.75.75 0 0 1 0-1.06Zm-10.74 11.25a.75.75 0 0 1 0 1.06l-2.775 2.775a.75.75 0 0 1-1.06-1.06l2.775-2.775a.75.75 0 0 1 1.06 0Zm11.668 0a.75.75 0 0 1 0 1.06l-2.775 2.775a.75.75 0 0 0 1.06 1.06l2.775-2.775a.75.75 0 0 0 0-1.06ZM12 18.75a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0v-2.25a.75.75 0 0 1 .75-.75Z" clip-rule="evenodd" />
+        </svg>
+      </button>
     </div>
   </nav>
 
   <div id="mainContent">
+    <div id="auth-section">
+      <!-- Auth forms (hidden if logged in) -->
+      <p id="guestModeMessage" style="display: none;">You are in guest mode. Your data is saved locally. Log in or sign up to save your data permanently.</p>
+    </div>
+
     <div id="app-section">
-        <p id="guestModeMessage" style="display:none;">
-            You are in guest mode. Your tasks and notes are saved only on this device.
-            <br>Sign up to save and sync across devices!
-        </p>
-
-        <div class="timer-controls">
-            <input type="number" id="timeInput" class="input" min="1" placeholder="Set Time" autocomplete="off" />
-            <button id="setButton" class="button">Set</button>
-            <button id="startButton" class="button" disabled>Start</button>
-            <button id="stopButton" class="button" disabled>Stop</button>
-        </div>
-
-        <div id="timer">0:00</div>
-        <div id="timerBarContainer">
-            <div id="timerBar"></div>
-        </div>
-
-        <hr class="custom-hr" />
-
-        <div class="task-input-container">
-            <label for="taskInput" class="sr-only">Add a new task</label>
-            <input type="text" id="taskInput" placeholder="Add a new task" aria-label="Task Name" />
-            <button id="addTaskButton" class="button">Add Task</button>
-        </div>
-
-        <div class="task-control-row">
-            <select class="select-box category-select" id="categorySelect">
-                <option value="Work">🏷️ Work</option>
-                <option value="Personal" selected>🏷️ Personal</option>
-                <option value="Health">🏷️ Health</option>
+      <div id="timer">0:00</div>
+      <div id="timerBarContainer">
+        <div id="timerBar"></div>
+      </div>
+      <div class="timer-controls">
+        <input type="number" id="timeInput" class="input" value="25" min="1" />
+        <button id="setButton" class="button">Set</button>
+        <button id="startButton" class="button" disabled>Start</button>
+        <button id="stopButton" class="button" disabled>Stop</button>
+      </div>
+      <hr class="custom-hr" />
+      <div class="task-control-row">
+        <input type="text" id="taskInput" placeholder="Add a new task..." class="input" />
+        <input type="date" id="taskDueDate" class="date-input" title="Set due date" /> <!-- Added this line -->
+        <button id="addTaskButton" class="button">Add Task</button>
+      </div>
+      <div class="task-control-row">
+            <select id="categorySelect" class="select-box" aria-label="Select task category">
+                <option value="Personal">Personal</option>
+                <option value="Work">Work</option>
+                <option value="Health">Health</option>
                 <option value="__custom__">Add New Category…</option>
             </select>
-
-            <select class="select-box priority-select" id="prioritySelect">
+            <select id="prioritySelect" class="select-box" aria-label="Select task priority">
                 <option value="Low">⚡ Low</option>
                 <option value="Medium" selected>⚡ Medium</option>
                 <option value="High">⚡ High</option>
                 <option value="__custom__">Add New Priority…</option>
             </select>
-            <!-- New Date Input Field -->
-            <input type="date" id="dueDateInput" class="input date-input" aria-label="Due Date" />
 </div>
 <hr class="custom-hr" />
             <div id="taskCountToday" class="task-counter-line">
@@ -114,7 +102,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script type="module" src="./supabase-init.js"></script>
   <script type="module" src="./script.js"></script>
-  <script src="./supabase-init.js" type="module"></script>
 </body>
 </html>
