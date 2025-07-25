@@ -1,4 +1,4 @@
-
+/* --- Variables --- */
 :root {
   --bg: #f5f5f5;
   --fg: #333;
@@ -8,6 +8,12 @@
   --button-fg: #fff;
   --input-bg: #fff;
   --select-bg: #f9f9f9;
+  --highlight-color: #4aa2ff; /* Added for consistent hover states */
+  --title-color: #1a1a1a;
+  --today-task-bg: #fff3cd; /* Light yellow for today's tasks */
+  --today-task-border: #ffeeba;
+  --overdue-task-bg: #f8d7da; /* Light red for overdue tasks */
+  --overdue-task-border: #f5c6cb;
 }
 
 body[data-theme="dark"] {
@@ -19,9 +25,15 @@ body[data-theme="dark"] {
   --button-fg: #fff;
   --input-bg: #1e1e1e;
   --select-bg: #2a2a2a;
+  --highlight-color: #4aa2ff;
+  --title-color: #007bff; /* Title color for dark theme */
+  --today-task-bg: #4a4a00; /* Darker yellow for today's tasks */
+  --today-task-border: #666600;
+  --overdue-task-bg: #6a0000; /* Darker red for overdue tasks */
+  --overdue-task-border: #8b0000;
 }
 
-/* CSS Reset and Base Setup */
+/* --- CSS Reset and Base Setup --- */
 body {
   display: flex;
   flex-direction: column;
@@ -29,201 +41,189 @@ body {
   align-items: center;
   text-align: left;
   height: 100vh;
-  padding: 20px;
   background-color: var(--bg);
   font-family: Arial, sans-serif;
   color: var(--fg);
 }
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 1rem;
+  color: var(--title-color);
+  text-align: center;
+  line-height: 1.2;
+  font-family: "Segoe UI", Roboto, sans-serif;
+}
+
+h1::after {
+  content: "";
+  display: block;
+  width: 60px;
+  height: 3px;
+  background: #3f97f6;
+  margin: 8px auto 0;
+  border-radius: 4px;
+}
+
+hr.custom-hr {
+  width: 100%;
+  max-width: 1000px;
+  margin: 20px auto;
+  border: none;
+  border-top: 1px solid var(--border);
+  opacity: 0.6;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* --- Navigation Bar Styles --- */
 #main-navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding: 10px 20px;
-    background-color: var(--card-bg); /* Use card background for the nav */
-    border-bottom: 1px solid var(--border);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    position: sticky; /* Makes it stick to the top */
-    top: 0;
-    z-index: 100; /* Ensure it's above other content */
-    box-sizing: border-box; /* Include padding in width */
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
-}
-
-.nav-left, .nav-right {
-    display: flex;
-    align-items: center;
-    gap: 15px; /* Space between items in nav sections */
-}
-
-.nav-title {
-    font-size: 1.8rem; /* Slightly smaller than main H1 */
-    font-weight: 700;
-    color: var(--button-bg); /* Use your primary color for the title */
-    margin: 0; /* Remove default margin */
-}
-/* Remove the ::after pseudo-element for the nav title */
-.nav-title::after {
-    display: none;
-}
-
-#auth-nav-items, #user-nav-items {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap; /* Allow inputs/buttons to wrap */
-}
-
-#auth-nav-items input {
-    padding: 8px 12px;
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    background-color: var(--input-bg);
-    color: var(--fg);
-    font-size: 0.9em;
-    width: 120px; /* Adjust as needed */
-}
-
-.nav-button {
-    padding: 8px 12px;
-    font-size: 0.9em;
-    border-radius: 5px;
-    border: none;
-    background-color: var(--button-bg);
-    color: var(--button-fg);
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.nav-button:hover {
-    background-color: #4aa2ff; /* Lighter blue on hover */
-}
-
-.user-email {
-    font-weight: bold;
-    color: var(--fg);
-    font-size: 1em;
-}
-
-/* Adjust mainContent padding to account for sticky nav */
-#mainContent {
-    padding-top: 20px; /* Add some padding so content doesn't go under nav */
-    /* Keep existing width, margin, display properties */
-    width: 90%;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-/* Media queries for responsiveness */
-@media (max-width: 768px) {
-    #main-navbar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 10px;
-    }
-    .nav-right {
-        width: 100%;
-        justify-content: flex-start;
-        flex-wrap: wrap;
-    }
-    #auth-nav-items, #user-nav-items {
-        width: 100%;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 5px;
-    }
-    #auth-nav-items input, .nav-button {
-        width: 100%;
-        box-sizing: border-box; /* Ensure padding/border included in width */
-    }
-}
-/* Notes Sidebar */
-.notes-sidebar {
-  position: fixed;
-  top: 0;
-  right: -100%;
-  width: 350px;
-  max-width: 100%;
-  height: 95%;
-  background: var(--card-bg);
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
-  transition: right 0.3s ease-in-out;
-  z-index: 1000;
-  padding: 20px;
-  display: flex;
-    border-radius: 20px 0px 0px 20px;
-  flex-direction: column;
-  overflow-y: auto;
-    color: var(--fg);
-}
-#notes-toggle {
-    border: none;
-    cursor: pointer;
-    background-color: white;
-}
-.notes-sidebar.open {
-  right: 0;
-}
-
-.notes-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
-  padding-left: 10px;
+  width: 100%;
+  padding: 10px 20px;
+  background-color: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-sizing: border-box;
+  flex-wrap: wrap;
 }
 
-.close-button {
-  background: none;
+.nav-left,
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.nav-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--button-bg);
+  margin: 0;
+}
+
+.nav-title::after {
+  display: none;
+}
+
+#auth-nav-items,
+#user-nav-items {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#auth-nav-items input {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background-color: var(--input-bg);
+  color: var(--fg);
+  font-size: 0.9em;
+  width: 120px;
+}
+
+.nav-button {
+  padding: 8px 12px;
+  font-size: 0.9em;
+  border-radius: 5px;
   border: none;
-  font-size: 20px;
+  background-color: var(--button-bg);
+  color: var(--button-fg);
   cursor: pointer;
-  padding: 0;
-  color: #888;
-  transition: color 0.2s ease;
-  margin-right: 1.5rem;
-}
-.close-button:hover,
-.close-button:focus {
-  color: #ff3b3b; /* bright red to indicate close */
-  outline: none;
-  
-}
-#notesSidebar textarea#notes { /* Be specific to override potential generic textarea styles */
-    width: calc(100% - 20px); /* Account for padding */
-    height: calc(100% - 100px); /* Adjust based on header/footer height */
-    padding: 10px;
-    margin: 10px; /* To give some space from edges */
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-family: Arial, sans-serif;
-    font-size: 1em;
-    line-height: 1.5;
-    resize: none; /* Prevent resizing */
-    background-color: var(--input-bg);
-    color: var(--fg);
-    box-sizing: border-box; /* Include padding/border in width/height */
-}
-/* Ensure the sidebar itself accommodates the textarea */
-#notesSidebar {
-    /* Keep your existing styles for position, width, height, etc. */
-    display: flex; /* Make it a flex container */
-    flex-direction: column; /* Arrange items vertically */
-    justify-content: flex-start; /* Align content to the top */
-    /* Add padding/gap if needed for internal elements */
-    padding-bottom: 20px; /* Give space for the reset button */
+  transition: background-color 0.2s ease;
 }
 
-/* Timer */
+.nav-button:hover {
+  background-color: var(--highlight-color);
+}
+
+.user-email {
+  font-weight: bold;
+  color: var(--fg);
+  font-size: 1em;
+}
+
+#toggleNotes.notes-toggle,
+#themeToggle.theme-toggle {
+  padding: 5px;
+  width: auto;
+  height: auto;
+  background: none;
+  color: var(--button-bg);
+  border: none;
+  gap: 0;
+  filter: none;
+  box-shadow: none;
+}
+
+#toggleNotes.notes-toggle:hover,
+#themeToggle.theme-toggle:hover {
+  color: var(--highlight-color);
+  background: none;
+}
+
+#toggleNotes.notes-toggle svg,
+#themeToggle.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  display: block;
+  filter: none;
+  box-shadow: none;
+}
+
+/* --- Main Content Layout --- */
+#mainContent {
+  padding-top: 30px; /* Increased padding */
+  width: 95%; /* Increased width */
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.3s ease;
+}
+
+body.notes-open #mainContent {
+  transform: translateX(-200px);
+}
+
+#guestModeMessage {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 10px 15px;
+  margin-top: 15px;
+  border-radius: 8px;
+  font-size: 0.9em;
+  color: var(--fg);
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* --- Timer Styles --- */
 #timer {
   font-size: 48px;
-  color: var(--fg); /* ✅ Replace this */
+  color: var(--fg);
   margin-bottom: 20px;
-     justify-self: center;
+  justify-self: center;
 }
 
 #timer.active {
@@ -231,11 +231,12 @@ body {
   height: auto;
   pointer-events: auto;
 }
+
 #timerBarContainer {
   width: 100%;
   max-width: 400px;
   height: 10px;
-     justify-self: center;
+  justify-self: center;
   background-color: var(--border);
   border-radius: 5px;
   margin-bottom: 20px;
@@ -245,62 +246,28 @@ body {
 #timerBar {
   height: 100%;
   width: 0%;
-    background-color:var(--button-bg);
+  background-color: var(--button-bg);
   transition: width 1s linear;
 }
 
-/* Input Containers */
-.task-input-container {
-  display: flex;
-  width: 100%;
-  max-width: 800px; /* Optional max width */
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.task-input-container input[type="text"] {
-background-color: var(--input-bg);
-  color: var(--fg);
-  border: 1px solid var(--border);
-
-  flex: 1;
-  min-width: 0;
-}
-.task-input-container button {
-  flex-shrink: 0;
-}
-.input-container,
-.button-container {
-  display: flex;
-  width: 100%;
-  max-width: 400px; /* Optional max width */
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 10px;
-    justify-content: center;
-}
-.select-box:hover {
-  background-color: var(--input-bg);
-  border-color: var(--border);
-}
 .timer-controls {
   display: flex;
- justify-content: center;
-  gap: 14px;          /* space between input and buttons */
+  justify-content: center;
+  gap: 14px;
   align-items: center;
   margin-bottom: 1rem;
   margin-top: 1rem;
 }
 
 .timer-controls .input {
-  width: 80px;       /* or whatever width you prefer for input */
+  width: 80px;
   padding: 10px 14px;
   font-size: 1rem;
   border-radius: 6px;
   border: 1px solid #ccc;
 }
 
-/* Inputs and Buttons */
+/* --- Form Elements (Inputs, Buttons, Selects) --- */
 .input,
 .button {
   padding: 10px 20px;
@@ -312,12 +279,11 @@ background-color: var(--input-bg);
 
 .input {
   background-color: var(--input-bg);
-    color: var(--fg);
+  color: var(--fg);
   border: 1px solid var(--border);
   width: 100px;
   text-align: center;
 }
-
 
 .button {
   border: none;
@@ -332,10 +298,97 @@ background-color: var(--input-bg);
 }
 
 .button:hover {
-  background-color: #4aa2ff;
+  background-color: var(--highlight-color);
   border-color: #999;
 }
-/* Task Input */
+
+/* Remove number input spinners in most browsers */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Date input specific styling */
+input[type="date"].date-input {
+    width: auto; /* Adjust width as needed */
+    min-width: 160px; /* Minimum width for date input */
+    padding: 10px 14px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background-color: var(--input-bg);
+    color: var(--fg);
+    text-align: left; /* Align text to left for date */
+    box-sizing: border-box;
+}
+body[data-theme="dark"] input[type="date"].date-input {
+    color-scheme: dark; /* Ensures date picker calendar is dark */
+}
+
+
+.select-box {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  font-size: 14px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  min-height: auto;
+  width: auto;
+  text-align: left;
+  background-color: var(--select-bg);
+  color: var(--fg);
+  background-image: url("data:image/svg+xml;utf8,<svg fill='%23333' height='' viewBox='0 0 24 24' width='10' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 18px;
+  min-width: 200px;
+}
+
+body[data-theme="dark"] .select-box {
+    background-image: url("data:image/svg+xml;utf8,<svg fill='%23e0e0e0' height='' viewBox='0 0 24 24' width='10' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+}
+
+
+.select-box:hover {
+  background-color: var(--input-bg);
+  border-color: var(--border);
+}
+
+#categorySelect option[value="__custom__"],
+#prioritySelect option[value="__custom__"] {
+  color: #666;
+  background-color: #f0f0f0;
+}
+
+
+/* --- Task Management Sections --- */
+.task-input-container {
+  display: flex;
+  width: 100%;
+  max-width: 800px;
+  gap: 15px; /* Increased gap */
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.task-input-container input[type="text"] {
+  background-color: var(--input-bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  flex: 1;
+  min-width: 0;
+}
+
+.task-input-container button {
+  flex-shrink: 0;
+}
+
 #taskInput {
   flex-grow: 1;
   padding: 10px;
@@ -346,10 +399,9 @@ background-color: var(--input-bg);
   border-radius: 6px;
 }
 
-/* Task List */
 #taskList {
   width: 100%;
-  max-width: 900px;
+  max-width: 800px;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -357,31 +409,41 @@ background-color: var(--input-bg);
 
 #taskList li {
   background: var(--card-bg);
-    color: var(--fg);
+  color: var(--fg);
   flex-wrap: wrap;
-  padding-top: 0px;
-  padding-bottom: 0px;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding: 10px 15px; /* Increased padding */
   margin-bottom: 8px;
   border-radius: 5px;
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease-in-out;
 }
+
+/* Date-related signalization */
+#taskList li.task-due-today {
+  background-color: var(--today-task-bg);
+  border: 1px solid var(--today-task-border);
+}
+
+#taskList li.task-overdue {
+  background-color: var(--overdue-task-bg);
+  border: 1px solid var(--overdue-task-border);
+}
+
+
 #taskList input[type="checkbox"] {
-  accent-color: #007bff; /* Green for completed tasks */
+  accent-color: #007bff;
 }
 
 #taskList li.finished {
-  background-color: rgba(0, 0, 0, 0.05); /* Light gray in light mode */
+  background-color: rgba(0, 0, 0, 0.05);
   opacity: 0.6;
 }
 
 body[data-theme="dark"] #taskList li.finished {
-  background-color: rgba(255, 255, 255, 0.08); /* Slightly lighter for dark mode */
+  background-color: rgba(255, 255, 255, 0.08);
   opacity: 0.5;
 }
 
@@ -392,11 +454,11 @@ body[data-theme="dark"] #taskList li.finished {
 
 .task-text {
   flex: 1;
-   flex-basis: 20%;
+  flex-basis: 20%;
   flex-grow: 1;
   flex-shrink: 1;
   min-width: 0;
-    line-height: 1.5;
+  line-height: 1.5;
   overflow-wrap: break-word;
   word-break: break-word;
   white-space: normal;
@@ -414,166 +476,14 @@ body[data-theme="dark"] #taskList li:not(.finished):hover {
   box-shadow: 0 0 8px rgba(74, 162, 255, 0.4);
 }
 
-/* Task Buttons */
-.delete-button {
-  background: #dc3545;
-  border: none;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.delete-button:hover {
-  background: #b02a37;
-}
-
-.task-timer {
-  min-width: 48px;
-  padding: 4px 10px;
-  font-family: monospace;
-  font-size: 12px;
-  text-align: center;
-  background-color: var(--background, #f0f0f0);
-  border: 1px solid var(--select-bg, #ccc);
-  border-radius: 12px;
-  color: var(--text-color, #333);
-}
-[data-theme="dark"] .task-timer {
-  background-color: #222;
-  border-color: #303030;
-  color: #ddd;
-}
-
-
-.timer-button {
-  background: #28a745;
-  border: none;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.timer-button.stop {
-  background: #ffc107;
-  color: black;
-}
-
-.timer-button:disabled {
-  background: #ccc;
-  cursor: default;
-}
-
-
-/* Drag & Drop */
-#taskList li.dragging {
-  opacity: 0.5;
-}
-
-#taskList li.dragover {
-  border-top: 2px solid #007bff;
-}
-
-
-.reset-notes-button {
-  align-self: center;
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  font-size: 14px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  margin-top: 10px;
-  margin-bottom: 5px;
-  max-width: 150px;
-}
-
-.reset-notes-button:hover {
-  background-color: #b02a37;
-}
-
-
-.task-counter-content .count {
-  font-size: 28px;
-  font-weight: bold;
-  color: var(--button-bg);
-  min-width: 30px;
-}
-
-.task-counter-content .label {
-  font-size: 16px;
-  color: var(--fg);
-}
-
-.reset-button {
-  background-color: #dc3545;
-  border: none;
-  color: white;
-  padding: 6px 12px;
-  font-size: 14px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.reset-button:hover {
-  background-color: #b02a37;
-}
-
-#mainContent {
-  width: 90%;
-  margin: 0 auto;
-  transition: transform 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-body.notes-open #mainContent {
-  transform: translateX(-200px);
-}
-
-/* In styles.css */
-.edit-button {
-    background: none; /* No button background */
-    border: none; /* No button border */
-    padding: 5px; /* Adjust padding around the icon */
-    cursor: pointer;
-    display: flex; /* Helps center the SVG */
-    justify-content: center;
-    align-items: center;
-    color: var(--fg); /* This sets the color for the SVG via currentColor */
-    transition: color 0.2s ease-in-out; /* Smooth hover transition */
-    /* Ensure no width/height properties that would stretch the button too much for an icon */
-    width: auto;
-    height: auto;
-}
-
-.edit-button:hover {
-    color: var(--highlight-color); /* Changes SVG color on hover */
-}
-
-/* Styles for the SVG element itself */
-.edit-button svg {
-    width: 14px; /* Set the desired size for your icon */
-    height: 14px;
-    fill: currentColor; /* Make sure SVG's fill matches parent text color */
-    display: block; /* Helps prevent extra space */
-
-    /* IMPORTANT: Add these if you suspect lingering shadows/filters */
-    filter: none; /* Removes any potential CSS filters/shadows */
-    box-shadow: none; /* Removes any potential CSS box-shadows */
-}
-
 .task-edit-input {
   flex-grow: 1;
   font-size: 16px;
   padding: 8px 16px;
-  max-width: 80%;
+  max-width: 95%;
   border-radius: 15px;
+margin-top: 10px;
+margin-bottom: 10px;
   border: 1px solid var(--border);
   box-sizing: border-box;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -607,264 +517,12 @@ body.notes-open #mainContent {
   border-radius: 4px;
 }
 
-
-/* Base styles for category and priority labels */
-.category-label,
-.priority-label {
-  display: inline-block;
-  background-color: var(--select-bg);
-  color: var(--fg);
-  padding-top: 4px;
-  padding-bottom: 4px;
-  font-size: 12px;
-  border-radius: 12px;
-  user-select: none;
-  transition: background-color 0.2s ease;
-  text-align: center;
+body[data-theme="dark"] .task-text code {
+    background-color: #333;
+    color: #eee;
 }
 
-.category-label {
-  padding-left: 8px;
-  padding-right: 12px;
-  width: 80px;
-}
-
-.priority-label {
-  padding-left: 8px;
-  padding-right: 10px;
-  width: 80px;
-}
-
-/* Hover states for category and priority labels */
-.category-label:hover,
-.priority-label:hover {
-  background-color: #ccc;
-}
-
-/* Dark theme hover states */
-body[data-theme="dark"] .category-label:hover,
-body[data-theme="dark"] .priority-label:hover {
-  background-color: #333; /* or #444 if you want it slightly lighter */
-}
-
-/* Active states for category and priority labels */
-.category-label.active-category,
-.priority-label.active-priority {
-  background-color: var(--button-bg); /* Use your primary button color */
-  color: var(--button-fg); /* Text color for active state */
-  border-color: var(--button-bg);
-  font-weight: bold;
-  width: 80px;
-  /* Add any other active styles like box-shadow, transform etc. */
-}
-
-/* Redundant/Conflicting rule - consider if this is needed */
-/* .priority-label.active-category {
-  background-color: #007bff;
-  color: white;
-} */
-.select-box {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  padding: 10px 20px; /* more space on right for arrow */
-  font-size: 14px;
-  border-radius: 5px;
-  border: 1px solid var(--border);
-  min-height: auto;
-  width: auto;
-  text-align: left;
-  background-color: var(--select-bg);
-  color: var(--fg);
-
-  /* Custom dropdown arrow */
-  background-image: url("data:image/svg+xml;utf8,<svg fill='%23333' height='' viewBox='0 0 24 24' width='10' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 18px;
-}
-
-.task-counter-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.counter-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.task-actions {
-  display: flex;
-  gap: 10px;
-}
-.task-control-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap; /* for responsiveness */
-  gap: 20px;
-  min-width: 800px;
-  margin: 8px auto 0px;
-}
-
-.select-box {
-  min-width: 200px;
-}
-
-.task-counter-line {
-  flex: 1;
-  border: 1px solid var(--border);
-  border-radius: 8px;          /* Rounded corners */
-  padding: 12px 16px;          /* Comfortable padding inside */
-  background-color: var(--card-bg);  /* Use card background for contrast */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1); /* subtle shadow for depth */
-  display: flex;
-  align-items: center;
-  justify-content: space-between;  /* Spread content horizontally */
-  gap: 15px;                      /* Space between children */
-  min-width: 340px;               /* Ensure it doesn’t shrink too much */
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-.task-counter-line:hover {
-  border-color: var(--select-bg);
-  cursor: default;
-}
-
-.task-counter-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-width: 220px;
-  margin-left: 2px;
-}
-
-.counter-text {
-  display: flex;
-  flex-direction: column;
-  padding-left: 8px;
-}
-
-.task-actions {
-  display: flex;
-  gap: 10px;
-}
-/* Remove number input spinners in most browsers */
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-  -webkit-appearance: none;
-  margin: 0; 
-}
-
-hr.custom-hr {
-  width: 100%;
-  max-width: 1000px;
-  margin: 20px auto;
-  border: none;
-  border-top: 1px solid var(--border, #242424); /* use your CSS variable or fallback */
-  opacity: 0.6;
-}
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-#categorySelect option[value="__custom__"] {
-  color: #666;
-  background-color: #f0f0f0;
-}
-#prioritySelect option[value="__custom__"] {
-  color: #666;
-  background-color: #f0f0f0;
-}
-@media (max-width: 480px) {
-  #taskList {
-    padding: 0 8px;
-  }
-
-  #taskList li {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 12px;
-    gap: 12px;
-    font-size: 16px;
-  }
-
-  .task-text {
-    width: 100%;
-    font-size: 16px;
-  }
-
-  .task-timer {
-    font-size: 14px;
-    padding: 6px 12px;
-    width: 92%;
-  }
-
-  .timer-button,
-  .delete-button {
-    width: 100%;
-    font-size: 16px;
-    padding: 10px;
-  }
-
-  .category-label,
-  .priority-label {
-    width: 94%;
-    text-align: center;
-    font-size: 15px;
-  }
-
-  .edit-button {
-    width: 20%;
-    font-size: 16px;
-    padding: 8px 10px;
-  }
-
-  #taskList li:not(.finished):hover {
-    transform: none;
-    box-shadow: none;
-  }
-}
-h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  margin-bottom: 1rem;
-  color: var(--title-color, #1a1a1a);
-  text-align: center;
-  line-height: 1.2;
-  font-family: "Segoe UI", Roboto, sans-serif;
-}
-
-/* Optional: Theme support */
-
-body[data-theme="dark"] h1 {
-
-    color: #007bff;
-}
-h1::after {
-  content: "";
-  display: block;
-  width: 60px;
-  height: 3px;
-  background: #3f97f6;
-  margin: 8px auto 0;
-  border-radius: 4px;
-}
+/* Subtask Styles */
 .subtask-list {
   list-style: none;
   padding-left: 1.5em;
@@ -892,71 +550,588 @@ h1::after {
   color: #007bff;
   cursor: pointer;
 }
-#guestModeMessage {
-    background-color: var(--card-bg); /* Or a softer background */
-    border: 1px solid var(--border);
-    padding: 10px 15px;
-    margin-top: 15px;
-    border-radius: 8px;
-    font-size: 0.9em;
-    color: var(--fg);
+
+/* Task Buttons */
+.delete-button {
+  background: #dc3545;
+  border: none;
+  color: white;
+  padding: 4px 8px; /* Reduced padding */
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.delete-button:hover {
+  background: #b02a37;
+}
+
+.timer-button {
+  background: #28a745;
+  border: none;
+  color: white;
+  padding: 4px 8px; /* Reduced padding */
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.timer-button.stop {
+  background: #ffc107;
+  color: black;
+}
+
+.timer-button:disabled {
+  background: #ccc;
+  cursor: default;
+}
+
+.edit-button {
+  background: none;
+  border: none;
+  padding: 3px; /* Reduced padding */
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--fg);
+  transition: color 0.2s ease-in-out;
+  width: auto;
+  height: auto;
+}
+
+.edit-button:hover {
+  color: var(--highlight-color);
+}
+
+.edit-button svg {
+  width: 12px; /* Reduced size */
+  height: 12px; /* Reduced size */
+  fill: currentColor;
+  display: block;
+  filter: none;
+  box-shadow: none;
+}
+
+.reset-button {
+  background-color: #dc3545;
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  font-size: 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.reset-button:hover {
+  background-color: #b02a37;
+}
+
+/* --- Task Labels & Counters --- */
+.task-timer {
+  min-width: 48px;
+  padding: 4px 10px;
+  font-family: monospace;
+  font-size: 12px;
+  text-align: center;
+  background-color: var(--background, #f0f0f0);
+  border: 1px solid var(--select-bg, #ccc);
+  border-radius: 12px;
+  color: var(--text-color, #333);
+}
+
+[data-theme="dark"] .task-timer {
+  background-color: #222;
+  border-color: #303030;
+  color: #ddd;
+}
+
+.category-label,
+.priority-label,
+.due-date-display { /* Added due-date-display */
+  display: inline-block;
+  background-color: var(--select-bg);
+  color: var(--fg);
+  padding: 3px 6px; /* Reduced padding */
+  font-size: 11px; /* Reduced font size */
+  border-radius: 12px;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  text-align: center;
+  min-width: 80px; /* Adjusted width */
+  max-width: 120px; /* Adjusted width */
+  width: max-content; /* Allow content to define width */
+  box-sizing: border-box; /* Include padding/border in width */
+}
+
+.priority-label {
+  padding-right: 10px; /* Slightly different for priority if needed */
+}
+
+
+/* Hover states for category and priority labels */
+.category-label:hover,
+.priority-label:hover,
+.due-date-display:hover { /* Added due-date-display */
+  background-color: #ccc;
+}
+
+/* Dark theme hover states */
+body[data-theme="dark"] .category-label:hover,
+body[data-theme="dark"] .priority-label:hover,
+body[data-theme="dark"] .due-date-display:hover { /* Added due-date-display */
+  background-color: #333;
+}
+
+/* Active states for category and priority labels */
+.category-label.active-category,
+.priority-label.active-priority {
+  background-color: var(--button-bg);
+  color: var(--button-fg);
+  border-color: var(--button-bg);
+  font-weight: bold;
+}
+
+.task-counter-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-width: 220px;
+  margin-left: 2px;
+}
+
+.task-counter-content .count {
+  font-size: 28px;
+  font-weight: bold;
+  color: var(--button-bg);
+  min-width: 30px;
+}
+
+.task-counter-content .label {
+  font-size: 16px;
+  color: var(--fg);
+}
+
+.counter-text {
+  display: flex;
+  flex-direction: column;
+  padding-left: 8px;
+  padding-right: 16px;
+}
+
+.task-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.task-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  min-width: 800px;
+  margin: 8px auto 0px;
+  gap: 20px;
+}
+
+.task-counter-line {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px 20px; /* Increased padding */
+  background-color: var(--card-bg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  min-width: 340px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.task-counter-line:hover {
+  border-color: var(--select-bg);
+  cursor: default;
+}
+
+
+/* --- Notes Sidebar --- */
+.notes-sidebar {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 300px; /* Reduced width */
+  max-width: 100%;
+  height: 95%;
+  background: var(--card-bg);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+  transition: right 0.3s ease-in-out;
+  z-index: 1000;
+  padding: 20px;
+  display: flex;
+  border-radius: 20px 0px 0px 20px;
+  flex-direction: column;
+  overflow-y: auto;
+  color: var(--fg);
+}
+
+.notes-sidebar.open {
+  right: 0;
+}
+
+#notes-toggle {
+  border: none;
+  cursor: pointer;
+  background-color: white;
+}
+
+.notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-left: 10px;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  color: #888;
+  transition: color 0.2s ease;
+  margin-right: 1.5rem;
+}
+
+.close-button:hover,
+.close-button:focus {
+  color: #ff3b3b;
+  outline: none;
+}
+
+#notesSidebar textarea#notes {
+  width: calc(100% - 20px);
+  height: calc(100% - 100px);
+  padding: 10px;
+  margin: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: Arial, sans-serif;
+  font-size: 1em;
+  line-height: 1.5;
+  resize: none;
+  background-color: var(--input-bg);
+  color: var(--fg);
+  box-sizing: border-box;
+}
+
+#notesSidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-bottom: 20px;
+}
+
+.reset-notes-button {
+  align-self: center;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  font-size: 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 10px;
+  margin-bottom: 5px;
+  max-width: 150px;
+}
+
+.reset-notes-button:hover {
+  background-color: #b02a37;
+}
+
+/* --- Drag & Drop --- */
+#taskList li.dragging {
+  opacity: 0.5;
+}
+
+#taskList li.dragover {
+  border-top: 2px solid #007bff;
+}
+
+/* --- Custom Modal Styles --- */
+.custom-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000; /* Ensure it's above everything */
+}
+
+.custom-modal-content {
+    background-color: var(--card-bg);
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-#toggleNotes.notes-toggle {
-    /* Remove padding/sizing that was for text */
-    padding: 5px; /* Smaller padding for an icon-only button */
-    width: auto; /* Let content define width */
-    height: auto;
-    background: none; /* Make background transparent if desired for icon-only */
-    color: var(--button-bg); /* Use foreground color for icon */
-    border: none; /* Remove border */
-    /* Remove gap if no text beside icon */
-    gap: 0;
+    max-width: 400px;
+    width: 90%;
+    color: var(--fg);
 }
 
-#toggleNotes.notes-toggle:hover {
-    color: var(--highlight-color); /* Change color on hover for the icon */
-    background: none; /* Keep background transparent on hover too */
+.custom-modal-content p {
+    margin-bottom: 20px;
+    font-size: 1.1em;
+    line-height: 1.4;
 }
 
-/* Style the SVG itself within the button */
-#toggleNotes.notes-toggle svg {
-    width: 20px; /* Adjust size as needed, e.g., 20px, 24px */
-    height: 20px;
-    fill: currentColor; /* Inherits color from the button's 'color' property */
-    display: block; /* Ensures proper rendering without extra space */
+.custom-modal-input {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 1em;
+    background-color: var(--input-bg);
+    color: var(--fg);
+}
 
-    /* Crucial for removing any potential unwanted shadows/filters */
-    filter: none;
+.custom-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.custom-modal-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease;
+}
+
+.custom-modal-button:not(.confirm-button):not(.cancel-button) { /* For 'OK' button */
+    background-color: var(--button-bg);
+    color: var(--button-fg);
+}
+
+.custom-modal-button:not(.confirm-button):not(.cancel-button):hover {
+    background-color: var(--highlight-color);
+}
+
+.custom-modal-button.confirm-button {
+    background-color: #28a745; /* Green for Yes/Confirm */
+    color: white;
+}
+
+.custom-modal-button.confirm-button:hover {
+    background-color: #218838;
+}
+
+.custom-modal-button.cancel-button {
+    background-color: #dc3545; /* Red for No/Cancel */
+    color: white;
+}
+
+.custom-modal-button.cancel-button:hover {
+    background-color: #c82333;
+}
+
+
+/* --- Media Queries for Responsiveness --- */
+
+/* Tablet and larger phones (up to 768px) */
+@media (max-width: 768px) {
+  #main-navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+  }
+  .nav-right {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  #auth-nav-items,
+  #user-nav-items {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  #auth-nav-items input,
+  .nav-button {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .task-control-row {
+    flex-direction: column;
+    min-width: unset; /* Remove min-width to allow shrinking */
+    width: 100%; /* Make it take full width */
+    gap: 15px; /* Adjust gap for vertical stacking */
+  }
+
+  .select-box,
+  input[type="date"].date-input { /* Apply to date input as well */
+    min-width: 100%; /* Ensure select boxes take full width */
+  }
+
+  .task-counter-line {
+    min-width: 100%; /* Ensure counter line takes full width */
+    justify-content: center; /* Center content in the counter */
+    flex-wrap: wrap; /* Allow content to wrap if needed */
+    text-align: center;
+  }
+
+  .counter-text {
+    align-items: center; /* Center text within the counter */
+    padding-left: 0;
+  }
+
+  .task-actions {
+    width: 100%;
+    justify-content: center; /* Center action buttons */
+  }
+
+  #mainContent {
+    width: 95%; /* Increase width for more space on smaller tablets */
+    padding-top: 10px; /* Reduce top padding if desired */
+  }
+}
+
+/* Smaller mobile devices (up to 480px) */
+@media (max-width: 480px) {
+  body {
+    padding: 10px; /* Reduce overall body padding */
+  }
+
+  h1 {
+    font-size: 2rem; /* Smaller heading for very small screens */
+  }
+
+  #main-navbar {
+    padding: 8px; /* Slightly less padding for navbar */
+  }
+
+  .nav-title {
+    font-size: 1.5rem; /* Smaller title */
+  }
+
+  #auth-nav-items input,
+  .nav-button {
+    font-size: 0.8em; /* Smaller font for nav buttons/inputs */
+    padding: 6px 10px;
+  }
+
+  .notes-sidebar {
+    width: 90%; /* Make sidebar wider on small screens */
+    height: 100%; /* Full height */
+    border-radius: 0; /* Remove border-radius on small screens */
+  }
+
+  #notesSidebar textarea#notes {
+    height: calc(100% - 120px); /* Adjust height for smaller screen */
+  }
+
+  #timer {
+    font-size: 36px; /* Smaller timer font */
+  }
+
+  .timer-controls .input {
+    width: 60px; /* Smaller width for timer input */
+    padding: 8px 10px;
+  }
+
+  .task-input-container {
+    flex-direction: column; /* Stack input and button vertically */
+    gap: 8px;
+  }
+
+  .task-input-container input[type="text"],
+  #taskInput {
+    width: 100%; /* Full width for task input */
+    box-sizing: border-box; /* Include padding/border in width */
+  }
+
+  #taskList {
+    padding: 0 5px; /* Reduce task list padding */
+  }
+
+  #taskList li {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px; /* Adjust padding for list items */
+    gap: 10px;
+    font-size: 15px; /* Slightly smaller font for task text */
+  }
+
+  .task-text {
+    width: 100%;
+    font-size: 15px;
+  }
+
+  .task-timer {
+    font-size: 12px;
+    padding: 5px 10px;
+    width: 100%; /* Full width for task timer */
+    box-sizing: border-box;
+  }
+
+  .timer-button,
+  .delete-button {
+    width: 100%;
+    font-size: 15px;
+    padding: 8px;
+  }
+
+  .category-label,
+  .priority-label,
+  .due-date-display { /* Added due-date-display */
+    width: 100%; /* Full width for labels */
+    text-align: center;
+    font-size: 14px;
+    padding: 6px 0; /* Adjust vertical padding */
+  }
+
+  .edit-button {
+    width: auto; /* Let content define width for edit button */
+    font-size: 15px;
+    padding: 5px;
+  }
+
+  #taskList li:not(.finished):hover {
+    transform: none;
     box-shadow: none;
-}
-/* Specific styles for the theme toggle button when it's an icon */
-#themeToggle.theme-toggle {
-    /* Override padding/sizing that was for text, making it compact */
-    padding: 5px; /* Smaller padding for an icon-only button */
-    width: auto; /* Let content define width */
-    height: auto;
-    background: none; /* Make background transparent if desired for icon-only */
-    color: var(--button-bg); /* Use foreground color for icon */
-    border: none; /* Remove border */
-    /* Remove gap if no text beside icon */
-    gap: 0;
+  }
 
-    /* Ensure no unwanted shadows/filters */
-    filter: none;
-    box-shadow: none;
-}
+  .task-control-row {
+    gap: 10px; /* Reduce gap further */
+  }
 
-#themeToggle.theme-toggle:hover {
-    color: var(--highlight-color); /* Change color on hover for the icon */
-    background: none; /* Keep background transparent on hover too */
-}
+  .task-counter-line {
+    padding: 8px 12px; /* Smaller padding for counter line */
+    gap: 10px;
+  }
 
-/* Style the SVG element itself within the button */
-#themeToggle.theme-toggle svg {
-    width: 20px; /* Adjust size as needed, e.g., 20px, 24px */
-    height: 20px;
-    fill: currentColor; /* Inherits color from the button's 'color' property (var(--fg) or var(--highlight-color) on hover) */
-    display: block; /* Ensures proper rendering without extra space */
+  .task-counter-content .count {
+    font-size: 24px; /* Smaller count font */
+  }
+
+  .task-counter-content .label {
+    font-size: 14px; /* Smaller label font */
+  }
+
+  .reset-button {
+    padding: 8px 14px; /* Adjust reset button padding */
+    font-size: 14px;
+  }
 }
