@@ -772,16 +772,33 @@ function createTaskElement(task) {
     const dueDateInput = document.createElement("input");
     dueDateInput.type = "date";
     dueDateInput.classList.add("date-input");
-    // Extract date part if task.due_date is a full ISO string
-    dueDateInput.value = task.due_date ? task.due_date.substring(0, 10) : '';
+    if (task.due_date) {
+        const dateObj = new Date(task.due_date);
+        console.log("createTaskElement - Loaded due_date (raw from DB):", task.due_date);
+        console.log("createTaskElement - Parsed Date Object (local time):", dateObj);
+        if (!isNaN(dateObj.getTime())) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            dueDateInput.value = `${year}-${month}-${day}`;
+        }
+    }
     dueDateInput.style.display = 'none';
 
     // NEW: Due Time Input
     const dueTimeInput = document.createElement("input");
     dueTimeInput.type = "time";
     dueTimeInput.classList.add("time-input"); // Add a class for styling
-    // Extract time part if task.due_date is a full ISO string
-    dueTimeInput.value = task.due_date ? task.due_date.substring(11, 16) : '';
+    if (task.due_date) {
+        const dateObj = new Date(task.due_date);
+        if (!isNaN(dateObj.getTime())) {
+            // Get local hours and minutes explicitly
+            const localHours = String(dateObj.getHours()).padStart(2, '0');
+            const localMinutes = String(dateObj.getMinutes()).padStart(2, '0');
+            dueTimeInput.value = `${localHours}:${localMinutes}`;
+            console.log(`createTaskElement - Setting time input value to: ${localHours}:${localMinutes} (local time from Date obj)`);
+        }
+    }
     dueTimeInput.style.display = 'none';
 
     // Notification Time Display
@@ -844,17 +861,26 @@ function createTaskElement(task) {
         }
     }
 
-    // Function to save combined date and time
+    // Function to save combined date and time - MODIFIED FOR ROBUST UTC CONVERSION
     async function saveDueDateTime() {
         const datePart = dueDateInput.value;
         const timePart = dueTimeInput.value;
         let newDueDateTime = null;
 
         if (datePart) {
-            if (timePart) {
-                newDueDateTime = `${datePart}T${timePart}:00`; // YYYY-MM-DDTHH:MM:00
+            // Construct a string that Date() will interpret as LOCAL time
+            const combinedLocalDateTimeString = `${datePart}T${timePart || '00:00'}:00`;
+            const localDateObj = new Date(combinedLocalDateTimeString);
+            
+            console.log("saveDueDateTime - Local Date Obj from inputs (interpreted locally):", localDateObj);
+
+            if (!isNaN(localDateObj.getTime())) {
+                // Convert this local Date object to its UTC ISO string for storage
+                newDueDateTime = localDateObj.toISOString();
+                console.log("saveDueDateTime - Converted to ISO String for DB (should be UTC):", newDueDateTime);
+
             } else {
-                newDueDateTime = `${datePart}T00:00:00`; // Default to start of day if no time
+                console.error("saveDueDateTime - Invalid date/time parsed:", combinedLocalDateTimeString);
             }
         }
         
@@ -1324,11 +1350,20 @@ async function addTaskFromInput() {
     let dueDateTime = null;
     const datePart = dueDateInput.value;
     const timePart = dueTimeInput.value;
+
     if (datePart) {
-        if (timePart) {
-            dueDateTime = `${datePart}T${timePart}:00`; // YYYY-MM-DDTHH:MM:00
+        // Construct a string that Date() will interpret as LOCAL time
+        const combinedLocalDateTimeString = `${datePart}T${timePart || '00:00'}:00`;
+        const localDateObj = new Date(combinedLocalDateTimeString);
+
+        console.log("addTaskFromInput - Local Date Obj from inputs (interpreted locally):", localDateObj);
+
+        if (!isNaN(localDateObj.getTime())) {
+            // Convert this local Date object to its UTC ISO string for storage
+            dueDateTime = localDateObj.toISOString();
+            console.log("addTaskFromInput - Converted to ISO String for DB (should be UTC):", dueDateTime);
         } else {
-            dueDateTime = `${datePart}T00:00:00`; // Default to start of day
+            console.error("addTaskFromInput - Invalid date/time parsed:", combinedLocalDateTimeString);
         }
     }
 
