@@ -174,7 +174,7 @@ hr.custom-hr {
   line-height: 1;
   border-radius: 0.5rem;
   transition: background-color 0.2s ease;
-    background-color: var(--button-bg);
+  background-color: var(--button-bg);
 }
 
 #toggleNotes.notes-toggle:hover,
@@ -190,7 +190,6 @@ hr.custom-hr {
   fill: currentColor;
   display: block;
   color: var(--button-fg);
-
 }
 
 /* --- Main Content Layout --- */
@@ -389,38 +388,62 @@ body[data-theme="dark"] .select-box {
 
 
 /* --- Task Management Sections --- */
-.task-input-container {
-  display: flex;
-  width: 100%;
-  max-width: none; /* Removed max-width to allow it to be full width */
-  gap: 15px; /* Increased gap */
-  align-items: center;
-  margin-bottom: 10px;
+/* NEW: Task Add Section for improved UX */
+.task-add-section {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.task-input-container input[type="text"] {
-  background-color: var(--input-bg);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  flex: 1;
-  min-width: 0;
+.task-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: center;
 }
 
-.task-input-container button {
-  flex-shrink: 0;
+.task-input-group .input {
+    flex-grow: 1;
+    padding: 12px 15px; /* Slightly larger padding for main task input */
+    font-size: 16px;
+    width: auto; /* Override default input width */
+    text-align: left; /* Align text to left */
 }
 
-#taskInput {
-display: flex;
-  justify-self: center;
-  padding: 10px;
-  margin-bottom: 20px;
-  font-size: 14px;
-  border: 1px solid #ccc;
-  width: 60%;
-  text-align: left;
-  border-radius: 6px;
+.task-details-row {
+    display: flex;
+    flex-wrap: wrap; /* Allows items to wrap on smaller screens */
+    gap: 15px; /* Space between input fields */
+    justify-content: space-between;
 }
+
+.input-field {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 150px; /* Ensures fields don't get too small */
+}
+
+.input-field label {
+    font-size: 0.9em;
+    color: var(--fg);
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.input-field .select-box,
+.input-field .date-input,
+.input-field .time-input {
+    width: 100%; /* Make them fill their container */
+    box-sizing: border-box;
+}
+/* END NEW: Task Add Section */
+
 
 #taskList {
   width: 100%;
@@ -454,6 +477,27 @@ display: flex;
 #taskList li.task-overdue {
   background-color: var(--overdue-task-bg);
   border: 1px solid var(--overdue-task-border);
+}
+
+/* NEW: Due Date Status Colors for the entire task item (li) */
+#taskList li.overdue-task {
+    border-left: 5px solid #dc3545; /* Red border for overdue */
+    background-color: var(--overdue-task-bg);
+}
+
+#taskList li.today-task {
+    border-left: 5px solid #ffc107; /* Yellow/Orange border for today */
+    background-color: var(--today-task-bg);
+}
+
+#taskList li.future-task {
+    /* Optional: A subtle blue border for future tasks */
+    border-left: 5px solid #007bff;
+}
+
+#taskList li.no-due-date {
+    /* No special border or color for tasks without a due date */
+    border-left: 5px solid transparent; /* To keep alignment consistent */
 }
 
 
@@ -500,14 +544,15 @@ body[data-theme="dark"] #taskList li:not(.finished):hover {
   box-shadow: 0 0 8px rgba(74, 162, 255, 0.4);
 }
 
-.task-edit-input {
+/* Removed task-edit-input as editing is now in modal */
+/* .task-edit-input {
   flex-grow: 1;
   font-size: 16px;
   padding: 8px 16px;
   max-width: 95%;
   border-radius: 15px;
-margin-top: 10px;
-margin-bottom: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
   border: 1px solid var(--border);
   box-sizing: border-box;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -517,7 +562,7 @@ margin-bottom: 10px;
   border-color: var(--button-bg);
   box-shadow: 0 0 5px var(--button-bg);
   outline: none;
-}
+} */
 
 /* Task Markdown Styles */
 .task-text h1,
@@ -609,26 +654,26 @@ body[data-theme="dark"] .task-text code {
 }
 
 .edit-button {
-  background: none;
+  background-color: var(--button-bg); /* Use primary button color */
+  color: var(--button-fg);
+  padding: 8px 12px;
+  border-radius: 5px;
   border: none;
-  padding: 3px; /* Reduced padding */
   cursor: pointer;
-  display: flex;
-  justify-content: center;
+  transition: background-color 0.2s ease;
+  font-size: 0.8em; /* Smaller font for inline button */
+  display: flex; /* For SVG centering */
   align-items: center;
-  color: var(--fg);
-  transition: color 0.2s ease-in-out;
-  width: auto;
-  height: auto;
+  justify-content: center;
 }
 
 .edit-button:hover {
-  color: var(--highlight-color);
+  background-color: var(--highlight-color);
 }
 
 .edit-button svg {
-  width: 12px; /* Reduced size */
-  height: 12px; /* Reduced size */
+  width: 16px; /* Adjusted size for better visibility */
+  height: 16px; /* Adjusted size for better visibility */
   fill: currentColor;
   display: block;
   filter: none;
@@ -651,23 +696,6 @@ body[data-theme="dark"] .task-text code {
 }
 
 /* --- Task Labels & Counters --- */
-.task-timer {
-  min-width: 48px;
-  padding: 4px 10px;
-  font-family: monospace;
-  font-size: 12px;
-  text-align: center;
-  background-color: var(--background, #f0f0f0);
-  border: 1px solid var(--select-bg, #ccc);
-  border-radius: 12px;
-  color: var(--text-color, #333);
-}
-
-[data-theme="dark"] .task-timer {
-  background-color: #222;
-  border-color: #303030;
-  color: #ddd;
-}
 
 .category-label,
 .priority-label,
@@ -687,6 +715,18 @@ body[data-theme="dark"] .task-text code {
   width: max-content; /* Allow content to define width */
   box-sizing: border-box; /* Include padding/border in width */
 }
+
+/* Specific text colors for the display if needed */
+#taskList li.overdue-task .due-date-display {
+    color: #dc3545; /* Red text for overdue */
+    font-weight: bold;
+}
+
+#taskList li.today-task .due-date-display {
+    color: #ffc107; /* Orange/Yellow text for today */
+    font-weight: bold;
+}
+
 
 .priority-label {
   padding-right: 10px; /* Slightly different for priority if needed */
@@ -749,7 +789,7 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
   gap: 10px;
 }
 
-.task-control-row {
+.task-control-row { /* This class is now mostly replaced by .task-add-section */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -866,7 +906,7 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
   border-top: 2px solid #007bff;
 }
 
-/* --- Custom Modal Styles --- */
+/* --- Custom Modal Styles (for alerts, confirms, prompts) --- */
 .custom-modal {
     position: fixed;
     top: 0;
@@ -951,6 +991,98 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 }
 
 
+/* --- Task Edit Modal Styles (NEW) --- */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 200; /* Sit on top, above other modals if any */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+    justify-content: center;
+    align-items: center;
+    padding-top: 50px; /* To push content down slightly from top */
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    margin: auto;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    position: relative;
+    width: 90%;
+    max-width: 500px; /* Max width for larger screens */
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.modal-content h2 {
+    text-align: center;
+    color: var(--title-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.modal-content .input-field label {
+    font-size: 1em;
+    margin-bottom: 8px;
+}
+
+.modal-content .input,
+.modal-content .select-box,
+.modal-content .date-input,
+.modal-content .time-input {
+    width: 100%;
+    padding: 12px;
+    font-size: 1em;
+}
+
+.modal .close-button { /* Specific close button for this modal */
+    color: var(--fg);
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.modal .close-button:hover,
+.modal .close-button:focus {
+    color: var(--highlight-color);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-buttons .button {
+    flex-grow: 1; /* Allow buttons to expand */
+    padding: 12px 25px; /* Adjust padding */
+}
+
+.button-secondary {
+    background-color: #6c757d; /* A different color for secondary action */
+}
+
+.button-secondary:hover {
+    background-color: #5a6268;
+}
+
+
 /* --- Media Queries for Responsiveness --- */
 
 /* Tablet and larger phones (up to 768px) */
@@ -979,11 +1111,20 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
     box-sizing: border-box;
   }
 
-  .task-control-row {
+  /* Task Add Section adjustments */
+  .task-add-section {
+    padding: 15px;
+  }
+  .task-input-group {
     flex-direction: column;
+    align-items: stretch;
+  }
+  .task-details-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .input-field {
     min-width: unset; /* Remove min-width to allow shrinking */
-    width: 100%; /* Make it take full width */
-    gap: 15px; /* Adjust gap for vertical stacking */
   }
 
   .select-box,
@@ -1020,6 +1161,15 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 
   body.notes-open #mainContent {
     transform: translateX(-50vw); /* Adjust transform for tablets */
+  }
+
+  /* Modal responsiveness */
+  .modal-content {
+      padding: 20px;
+      width: 95%;
+  }
+  .modal-buttons {
+      flex-direction: column; /* Stack buttons vertically on small screens */
   }
 }
 
@@ -1066,15 +1216,8 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
     padding: 8px 10px;
   }
 
-  .task-input-container {
-    flex-direction: column; /* Stack input and button vertically */
-    gap: 8px;
-  }
-
-  .task-input-container input[type="text"],
-  #taskInput {
-    width: 100%; /* Full width for task input */
-    box-sizing: border-box; /* Include padding/border in width */
+  .task-add-section .input { /* Ensure main task input is full width */
+    width: 100%;
   }
 
   #taskList {
@@ -1099,13 +1242,6 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
     padding: 5px 10px;
     width: 100%; /* Full width for task timer */
     box-sizing: border-box;
-  }
-
-  .timer-button,
-  .delete-button {
-    width: 100%;
-    font-size: 15px;
-    padding: 8px;
   }
 
   .category-label,

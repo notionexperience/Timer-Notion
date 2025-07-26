@@ -17,7 +17,7 @@ function getGuestTasks() {
     } catch (e) {
         console.error("Error parsing guest tasks from localStorage:", e);
         return [];
-    }   
+    }
 }
 
 function saveGuestTasks(tasks) {
@@ -49,11 +49,10 @@ async function migrateGuestDataToSupabase() {
             is_done: task.is_done,
             category: task.category,
             priority: task.priority,
-            elapsed: task.elapsed,
             // Ensure due_date is correctly formatted as ISO string if it exists
             due_date: task.due_date ? new Date(task.due_date).toISOString() : null,
             position: task.position || 0,
-            notification_time: task.notification_time || null, 
+            notification_time: task.notification_time || null,
         }));
 
         const { error: tasksError } = await supabase.from("tasks").insert(tasksToInsert, { ignoreDuplicates: true });
@@ -87,12 +86,12 @@ async function signInUser(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     console.error("Login failed:", error.message);
-    showCustomAlert("Login failed: " + error.message); 
+    showCustomAlert("Login failed: " + error.message);
   } else {
     console.log("Logged in:", data);
     await migrateGuestDataToSupabase();
     await checkUserAndLoadApp();
-    requestNotificationPermission(); 
+    requestNotificationPermission();
   }
 }
 
@@ -100,9 +99,9 @@ async function signUpUser(email, password) {
   const { error } = await supabase.auth.signUp({ email, password });
   if (error) {
     console.error("Signup failed:", error.message);
-    showCustomAlert("Signup failed: " + error.message); 
+    showCustomAlert("Signup failed: " + error.message);
   } else {
-    showCustomAlert("Signup successful – check your email to confirm"); 
+    showCustomAlert("Signup successful – check your email to confirm");
     await migrateGuestDataToSupabase();
     await checkUserAndLoadApp();
     requestNotificationPermission();
@@ -122,9 +121,9 @@ async function resetPasswordForEmailUser(email) {
   });
 
   if (error) {
-    showCustomAlert("Error sending password setup email: " + error.message); 
+    showCustomAlert("Error sending password setup email: " + error.message);
   } else {
-    showCustomAlert("Check your inbox to set your password."); 
+    showCustomAlert("Check your inbox to set your password.");
   }
 }
 
@@ -218,10 +217,9 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
                 is_done: false,
                 category: category,
                 priority: priority,
-                elapsed: 0,
                 due_date: dueDateTime, // Store as full ISO string
                 position: lastTaskPosition,
-                notification_time: notificationTime,
+                notification_time: notificationTime, // This is expected to be minutes offset
             },
         ]).select();
 
@@ -239,11 +237,10 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
             is_done: false,
             category: category,
             priority: priority,
-            elapsed: 0,
             created_at: new Date().toISOString(),
             due_date: dueDateTime, // Store as full ISO string
             position: lastTaskPosition,
-            notification_time: notificationTime,
+            notification_time: notificationTime, // This is expected to be minutes offset
         };
         guestTasks.push(newTask);
         saveGuestTasks(guestTasks);
@@ -251,6 +248,41 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
     }
     return newTask;
 }
+
+// New function to update a task
+async function updateTask(taskId, updates) {
+    if (currentUser) {
+        const { error } = await supabase
+            .from("tasks")
+            .update(updates)
+            .eq("id", taskId)
+            .eq("user_id", currentUser.id);
+        if (error) console.error("Failed to update task in Supabase:", error.message);
+    } else {
+        let guestTasks = getGuestTasks();
+        const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId));
+        if (taskIndex !== -1) {
+            guestTasks[taskIndex] = { ...guestTasks[taskIndex], ...updates };
+            saveGuestTasks(guestTasks);
+        }
+    }
+    // If due_date or notification_time is updated, reschedule notification
+    if (updates.due_date !== undefined || updates.notification_time !== undefined) {
+        // Fetch the updated task to ensure all fields are current for scheduling
+        let currentTask = null;
+        if (currentUser) {
+            const { data, error } = await supabase.from("tasks").select("*").eq("id", taskId).single();
+            if (!error) currentTask = data;
+        } else {
+            currentTask = getGuestTasks().find(t => t.id == Number(taskId));
+        }
+
+        if (currentTask) {
+            scheduleTaskNotification(currentTask);
+        }
+    }
+}
+
 
 async function deleteTask(id) {
     clearScheduledNotification(id);
@@ -496,109 +528,6 @@ function stopTimer() {
   clearInterval(timerInterval);
 }
 
-// Task timer logic
-let activeTaskTimer = null;
-let activeTaskId = null;
-
-function formatTime(seconds) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? "0" : ""}${s}`;
-}
-
-function stopTaskTimerIfRunning(liToExclude) {
-    if (activeTaskTimer && activeTaskId && activeTaskId.dataset.taskId !== liToExclude.dataset.taskId) {
-        clearInterval(activeTaskTimer);
-        const previousActiveLi = document.querySelector(`[data-task-id="${activeTaskId.dataset.taskId}"]`);
-        if (previousActiveLi) {
-            previousActiveLi.classList.remove("active-task");
-            const buttons = previousActiveLi.querySelectorAll(".timer-button");
-            if (buttons[0]) buttons[0].disabled = false;
-            if (buttons[1]) buttons[1].disabled = true;
-        }
-        activeTaskTimer = null;
-        activeTaskId = null;
-    }
-}
-
-async function startTaskTimer(li) {
-    if (li.classList.contains("finished")) return;
-    if (activeTaskTimer && activeTaskId && activeTaskId.dataset.taskId === li.dataset.taskId) return;
-
-    stopTaskTimerIfRunning(li);
-
-    li.classList.add("active-task");
-    const timerDisplay = li.querySelector(".task-timer");
-    const startBtn = li.querySelector(".timer-button:not(.stop)");
-    const stopBtn = li.querySelector(".timer-button.stop");
-
-    if (startBtn) startBtn.disabled = true;
-    if (stopBtn) stopBtn.disabled = false;
-
-    activeTaskId = li;
-
-    activeTaskTimer = setInterval(async () => {
-        let elapsed = parseInt(li.dataset.elapsed, 10) || 0;
-        elapsed++;
-        li.dataset.elapsed = elapsed;
-        if(timerDisplay) timerDisplay.textContent = formatTime(elapsed);
-
-        const taskId = li.dataset.taskId;
-        if (taskId && elapsed % 5 === 0) {
-            if (currentUser) {
-                const { error } = await supabase
-                    .from("tasks")
-                    .update({ elapsed: elapsed })
-                    .eq("id", taskId)
-                    .eq("user_id", currentUser.id);
-                if (error) console.error("Failed to update elapsed time in Supabase:", error.message);
-            } else {
-                let guestTasks = getGuestTasks();
-                const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId));
-                if (taskIndex !== -1) {
-                    guestTasks[taskIndex].elapsed = elapsed;
-                    saveGuestTasks(guestTasks);
-                }
-            }
-        }
-    }, 1000);
-}
-
-async function stopTaskTimer(li) {
-    if (activeTaskId && activeTaskId.dataset.taskId !== li.dataset.taskId) return;
-    clearInterval(activeTaskTimer);
-    activeTaskTimer = null;
-    activeTaskId = null;
-
-    li.classList.remove("active-task");
-
-    const startBtn = li.querySelector(".timer-button:not(.stop)");
-    const stopBtn = li.querySelector(".timer-button.stop");
-
-    if (startBtn) startBtn.disabled = false;
-    if (stopBtn) stopBtn.disabled = true;
-
-    const taskId = li.dataset.taskId;
-    const finalElapsed = parseInt(li.dataset.elapsed, 10) || 0;
-    if (taskId) {
-        if (currentUser) {
-            const { error } = await supabase
-                .from("tasks")
-                .update({ elapsed: finalElapsed })
-                .eq("id", taskId)
-                .eq("user_id", currentUser.id);
-            if (error) console.error("Failed to save final elapsed time in Supabase:", error.message);
-        } else {
-            let guestTasks = getGuestTasks();
-            const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId));
-            if (taskIndex !== -1) {
-                guestTasks[taskIndex].elapsed = finalElapsed;
-                saveGuestTasks(guestTasks);
-            }
-        }
-    }
-}
-
 // Helper to get today's date in YYYY-MM-DD format (used for display/comparison only)
 function getTodayDateString() {
     const today = new Date();
@@ -620,7 +549,7 @@ function scheduleTaskNotification(task) {
     clearScheduledNotification(task.id); // Clear any existing notification for this task
 
     const dueDateTime = new Date(task.due_date); // due_date is now expected to be a full ISO string
-    
+
     // If dueDateTime is invalid (e.g., only date was provided without time, or malformed)
     if (isNaN(dueDateTime.getTime())) {
         console.warn(`Invalid due_date for task ${task.id}: ${task.due_date}. Cannot schedule notification.`);
@@ -676,7 +605,6 @@ function createTaskElement(task) {
     li.draggable = true;
 
     li.dataset.category = task.category || "";
-    li.dataset.elapsed = task.elapsed || 0;
     li.dataset.taskId = task.id;
     li.dataset.priority = task.priority || "Medium";
     li.dataset.position = task.position || 0;
@@ -694,11 +622,15 @@ function createTaskElement(task) {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
         li.classList.remove("task-due-today", "task-overdue"); // Clear existing
-        if (diffDays === 0) {
-            li.classList.add('task-due-today');
-        } else if (diffDays < 0) {
-            li.classList.add('task-overdue');
+        if (diffDays < 0) { // Overdue
+            li.classList.add('overdue-task');
+        } else if (diffDays === 0) { // Due Today
+            li.classList.add('today-task');
+        } else { // Future
+            li.classList.add('future-task');
         }
+    } else {
+        li.classList.add('no-due-date');
     }
 
 
@@ -717,7 +649,6 @@ function createTaskElement(task) {
         } else {
           taskList.appendChild(li);
         }
-        stopTaskTimer(li);
         clearScheduledNotification(task.id);
       } else {
         li.classList.remove("finished");
@@ -751,244 +682,49 @@ function createTaskElement(task) {
       await updateTaskPositionsInDB();
       updateTaskCounter();
     });
+    li.appendChild(checkbox);
 
-    if (checkbox.checked) {
-      li.classList.add("finished");
-    }
-
-    // Task text span (marked.js usage)
+    // Task Content
     const span = document.createElement("span");
     span.classList.add("task-text");
     span.innerHTML = marked.parse(task.content || "");
     span.setAttribute("data-raw", task.content || "");
-
+    li.appendChild(span);
+    
     // Due Date Display
     const dueDateDisplay = document.createElement("span");
     dueDateDisplay.classList.add("due-date-display");
-    dueDateDisplay.style.cursor = "pointer";
-    dueDateDisplay.title = "Click to set/change due date and time";
-
-    // Due Date Input
-    const dueDateInput = document.createElement("input");
-    dueDateInput.type = "date";
-    dueDateInput.classList.add("date-input");
-    if (task.due_date) {
-        const dateObj = new Date(task.due_date);
-        console.log("createTaskElement - Loaded due_date (raw from DB):", task.due_date);
-        console.log("createTaskElement - Parsed Date Object (local time):", dateObj);
-        if (!isNaN(dateObj.getTime())) {
-            const year = dateObj.getFullYear();
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            dueDateInput.value = `${year}-${month}-${day}`;
+    if (taskDueDateTime && !isNaN(taskDueDateTime.getTime())) {
+        let dateString = taskDueDateTime.toLocaleDateString();
+        let timeString = '';
+        if (taskDueDateTime.getUTCHours() !== 0 || taskDueDateTime.getUTCMinutes() !== 0) {
+             timeString = taskDueDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
+        dueDateDisplay.textContent = `📅 ${dateString}` + (timeString ? ` ${timeString}` : '');
+    } else {
+        dueDateDisplay.textContent = "📅 No due date";
     }
-    dueDateInput.style.display = 'none';
+    li.appendChild(dueDateDisplay); // Appended after priorityLabel
 
-    // NEW: Due Time Input
-    const dueTimeInput = document.createElement("input");
-    dueTimeInput.type = "time";
-    dueTimeInput.classList.add("time-input"); // Add a class for styling
-    if (task.due_date) {
-        const dateObj = new Date(task.due_date);
-        if (!isNaN(dateObj.getTime())) {
-            // Get local hours and minutes explicitly
-            const localHours = String(dateObj.getHours()).padStart(2, '0');
-            const localMinutes = String(dateObj.getMinutes()).padStart(2, '0');
-            dueTimeInput.value = `${localHours}:${localMinutes}`;
-            console.log(`createTaskElement - Setting time input value to: ${localHours}:${localMinutes} (local time from Date obj)`);
-        }
-    }
-    dueTimeInput.style.display = 'none';
 
     // Notification Time Display
     const notificationTimeDisplay = document.createElement("span");
-    notificationTimeDisplay.classList.add("notification-time-display", "category-label");
-    notificationTimeDisplay.style.cursor = "pointer";
-    notificationTimeDisplay.title = "Click to set/change notification time (minutes before due)";
-
-    // Notification Time Input
-    const notificationTimeInput = document.createElement("input");
-    notificationTimeInput.type = "number";
-    notificationTimeInput.classList.add("input");
-    notificationTimeInput.min = "0";
-    notificationTimeInput.value = task.notification_time !== null ? task.notification_time : 15;
-    notificationTimeInput.style.display = 'none';
-    notificationTimeInput.placeholder = "🔔";
-
-
-    function updateDueDateDisplayAndClasses() {
-        if (task.due_date) {
-            const dateObj = new Date(task.due_date);
-            if (isNaN(dateObj.getTime())) { // Handle invalid dates
-                dueDateDisplay.textContent = "📅 Invalid Date";
-                li.classList.remove("task-due-today", "task-overdue");
-                return;
-            }
-
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            const taskDateOnly = new Date(dateObj);
-            taskDateOnly.setHours(0, 0, 0, 0);
-
-            const diffTime = taskDateOnly.getTime() - today.getTime();
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            let dateString = dateObj.toLocaleDateString();
-            let timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            dueDateDisplay.textContent = `📅 ${dateString} ${timeString}`;
-            li.classList.remove("task-due-today", "task-overdue");
-            if (diffDays === 0) {
-                li.classList.add('task-due-today');
-            } else if (diffDays < 0) {
-                li.classList.add('task-overdue');
-            }
+    notificationTimeDisplay.classList.add("notification-time-display");
+    if (task.notification_time !== null && task.notification_time > 0 && task.due_date) {
+        const dueDateTime = new Date(task.due_date);
+        if (!isNaN(dueDateTime.getTime())) {
+            const notificationTimestamp = dueDateTime.getTime() - (task.notification_time * 60 * 1000);
+            const actualNotificationTime = new Date(notificationTimestamp);
+            notificationTimeDisplay.textContent = `🔔 ${actualNotificationTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         } else {
-            dueDateDisplay.textContent = "📅 No due date";
-            li.classList.remove("task-due-today", "task-overdue");
+            notificationTimeDisplay.textContent = `🔔 Invalid Due Date for Notification`;
         }
+    } else {
+        notificationTimeDisplay.textContent = `🔔 No notification`;
     }
+    li.appendChild(notificationTimeDisplay); // Appended after dueDateDisplay
 
-    function updateNotificationTimeDisplay() {
-        if (task.notification_time !== null && task.due_date) {
-            notificationTimeDisplay.textContent = `🔔 ${task.notification_time} min`;
-            notificationTimeDisplay.style.display = 'inline-block';
-        } else {
-            notificationTimeDisplay.textContent = `🔔 No notification`;
-            notificationTimeDisplay.style.display = 'inline-block';
-        }
-    }
-
-    // Function to save combined date and time - MODIFIED FOR ROBUST UTC CONVERSION
-    async function saveDueDateTime() {
-        const datePart = dueDateInput.value;
-        const timePart = dueTimeInput.value;
-        let newDueDateTime = null;
-
-        if (datePart) {
-            // Construct a string that Date() will interpret as LOCAL time
-            const combinedLocalDateTimeString = `${datePart}T${timePart || '00:00'}:00`;
-            const localDateObj = new Date(combinedLocalDateTimeString);
-            
-            console.log("saveDueDateTime - Local Date Obj from inputs (interpreted locally):", localDateObj);
-
-            if (!isNaN(localDateObj.getTime())) {
-                // Convert this local Date object to its UTC ISO string for storage
-                newDueDateTime = localDateObj.toISOString();
-                console.log("saveDueDateTime - Converted to ISO String for DB (should be UTC):", newDueDateTime);
-
-            } else {
-                console.error("saveDueDateTime - Invalid date/time parsed:", combinedLocalDateTimeString);
-            }
-        }
-        
-        task.due_date = newDueDateTime; // Update task object with full ISO string
-
-        if (currentUser) {
-            const { error } = await supabase
-                .from("tasks")
-                .update({ due_date: task.due_date })
-                .eq("id", task.id)
-                .eq("user_id", currentUser.id);
-            if (error) console.error("Failed to update due date (Supabase):", error.message);
-        } else {
-            let guestTasks = getGuestTasks();
-            const taskIndex = guestTasks.findIndex(t => t.id == task.id);
-            if (taskIndex !== -1) {
-                guestTasks[taskIndex].due_date = task.due_date;
-                saveGuestTasks(guestTasks);
-            }
-        }
-        updateDueDateDisplayAndClasses();
-        updateNotificationTimeDisplay();
-        scheduleTaskNotification(task);
-    }
-
-
-    dueDateDisplay.addEventListener("click", () => {
-        dueDateDisplay.style.display = 'none';
-        dueDateInput.style.display = 'inline-block';
-        dueTimeInput.style.display = 'inline-block'; // Show time input too
-        dueDateInput.focus();
-    });
-
-    dueDateInput.addEventListener("change", saveDueDateTime);
-    dueTimeInput.addEventListener("change", saveDueDateTime); // Listen to time input changes
-
-    // FIX: Only hide if neither date, time, nor notification input is focused
-    dueDateInput.addEventListener("blur", () => {
-        // Use a small timeout to allow focus to shift to another input within the same task item
-        setTimeout(() => {
-            if (document.activeElement !== dueTimeInput && document.activeElement !== notificationTimeInput && document.activeElement !== dueDateInput) {
-                dueDateInput.style.display = 'none';
-                dueTimeInput.style.display = 'none';
-                dueDateDisplay.style.display = 'inline-block';
-                updateDueDateDisplayAndClasses();
-            }
-        }, 50); // Small delay
-    });
-
-    // FIX: Only hide if neither date, time, nor notification input is focused
-    dueTimeInput.addEventListener("blur", () => {
-        setTimeout(() => {
-            if (document.activeElement !== dueDateInput && document.activeElement !== notificationTimeInput && document.activeElement !== dueTimeInput) {
-                dueDateInput.style.display = 'none';
-                dueTimeInput.style.display = 'none';
-                dueDateDisplay.style.display = 'inline-block';
-                updateDueDateDisplayAndClasses();
-            }
-        }, 50); // Small delay
-    });
-
-
-    notificationTimeDisplay.addEventListener("click", () => {
-        notificationTimeDisplay.style.display = 'none';
-        notificationTimeInput.style.display = 'inline-block';
-        notificationTimeInput.focus();
-    });
-
-    notificationTimeInput.addEventListener("change", async () => {
-        const newNotificationTime = parseInt(notificationTimeInput.value, 10);
-        task.notification_time = isNaN(newNotificationTime) ? null : newNotificationTime;
-
-        if (currentUser) {
-            const { error } = await supabase
-                .from("tasks")
-                .update({ notification_time: task.notification_time })
-                .eq("id", task.id)
-                .eq("user_id", currentUser.id);
-            if (error) console.error("Failed to update notification time (Supabase):", error.message);
-        } else {
-            let guestTasks = getGuestTasks();
-            const taskIndex = guestTasks.findIndex(t => t.id == task.id);
-            if (taskIndex !== -1) {
-                guestTasks[taskIndex].notification_time = task.notification_time;
-                saveGuestTasks(guestTasks);
-            }
-        }
-        updateNotificationTimeDisplay();
-        scheduleTaskNotification(task);
-    });
-
-    // FIX: Only hide if neither date nor time input is focused
-    notificationTimeInput.addEventListener("blur", () => {
-        setTimeout(() => {
-            if (document.activeElement !== dueDateInput && document.activeElement !== dueTimeInput && document.activeElement !== notificationTimeInput) {
-                notificationTimeInput.style.display = 'none';
-                notificationTimeDisplay.style.display = 'inline-block';
-                updateNotificationTimeDisplay();
-            }
-        }, 50); // Small delay
-    });
-
-
-    updateDueDateDisplayAndClasses();
-    updateNotificationTimeDisplay();
-
-
-    // Category label
+    // Category label - MOVED HERE
     const categoryLabel = document.createElement("span");
     categoryLabel.classList.add("category-label");
     categoryLabel.textContent = `🏷️ ${task.category || "Personal"}`;
@@ -996,263 +732,90 @@ function createTaskElement(task) {
     categoryLabel.style.cursor = "pointer";
     categoryLabel.title = `Filter by ${task.category || "Personal"}`;
 
-    categoryLabel.addEventListener("click", async (e) => {
-      if (e.ctrlKey || e.metaKey || e.button === 2) {
-        e.preventDefault();
-        const select = document.createElement("select");
-        ["Personal", "Home", "Work", "Health", "Finance"].forEach(optionText => {
-          const option = document.createElement("option");
-          option.value = optionText;
-          option.textContent = optionText;
-          if (optionText === task.category) option.selected = true;
-          select.appendChild(option);
-        });
+    categoryLabel.addEventListener("click", (e) => {
+      const allTasks = document.querySelectorAll("#taskList li");
+      const isActive = categoryLabel.classList.toggle("active-category");
 
-        async function saveCategory() {
-          const newCategory = select.value;
-          task.category = newCategory;
-          categoryLabel.textContent = `🏷️ ${newCategory}`;
-          categoryLabel.dataset.category = newCategory;
-          li.dataset.category = newCategory;
-          select.replaceWith(categoryLabel);
+      allTasks.forEach(taskEl => {
+        const taskCat = taskEl.dataset.category;
+        const shouldShow = isActive ? taskCat === task.category : true;
+        taskEl.style.display = shouldShow ? "" : "none";
+      });
 
-          if (currentUser) {
-              const { error } = await supabase
-                .from("tasks")
-                .update({ category: newCategory })
-                .eq("id", task.id)
-                .eq("user_id", currentUser.id);
-              if (error) console.error("Failed to update category (Supabase):", error.message);
-          } else {
-              let guestTasks = getGuestTasks();
-              const taskIndex = guestTasks.findIndex(t => t.id == task.id);
-              if (taskIndex !== -1) {
-                  guestTasks[taskIndex].category = newCategory;
-                  saveGuestTasks(guestTasks);
-              }
-          }
-        }
+      document.querySelectorAll(".category-label").forEach(label => {
+        if (label !== categoryLabel) label.classList.remove("active-category");
+      });
 
-        select.addEventListener("blur", saveCategory);
-        select.addEventListener("keydown", e => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            saveCategory();
-          }
-        });
-
-        categoryLabel.replaceWith(select);
-        select.focus();
-      } else {
-        const allTasks = document.querySelectorAll("#taskList li");
-        const isActive = categoryLabel.classList.toggle("active-category");
-
-        allTasks.forEach(taskEl => {
-          const taskCat = taskEl.dataset.category;
-          const shouldShow = isActive ? taskCat === task.category : true;
-          taskEl.style.display = shouldShow ? "" : "none";
-        });
-
-        document.querySelectorAll(".category-label").forEach(label => {
-          if (label !== categoryLabel) label.classList.remove("active-category");
-        });
-
-        if (!isActive) {
-          allTasks.forEach(taskEl => taskEl.style.display = "");
-        }
+      if (!isActive) {
+        allTasks.forEach(taskEl => taskEl.style.display = "");
       }
     });
+    li.appendChild(categoryLabel); // Appended after span
 
-    // Priority label
+    // Priority label - MOVED HERE
     const priorityLabel = document.createElement("span");
     priorityLabel.classList.add("priority-label");
     priorityLabel.textContent = `⚡ ${task.priority || "Medium"}`;
     priorityLabel.style.cursor = "pointer";
     priorityLabel.title = `Filter by priority: ${task.priority || "Medium"}`;
 
-    priorityLabel.addEventListener("click", async (e) => {
-      if (e.ctrlKey || e.metaKey || e.button === 2) {
-        e.preventDefault();
+    priorityLabel.addEventListener("click", (e) => {
+      const allTasks = document.querySelectorAll("#taskList li");
+      const isActive = priorityLabel.classList.toggle("active-priority");
 
-        const select = document.createElement("select");
-        ["Scheduled", "Urgent", "High", "Medium", "Low"] .forEach(optionText => {
-          const option = document.createElement("option");
-          option.value = optionText;
-          option.textContent = optionText;
-          if (optionText === task.priority) option.selected = true;
-          select.appendChild(option);
-        });
+      allTasks.forEach(taskEl => {
+        const taskPriority = taskEl.dataset.priority;
+        const shouldShow = isActive ? taskPriority === (task.priority || "Medium") : true;
+        taskEl.style.display = shouldShow ? "" : "none";
+      });
 
-        async function savePriority() {
-          const newPriority = select.value;
-          task.priority = newPriority;
+      document.querySelectorAll(".priority-label").forEach(label => {
+        if (label !== priorityLabel) label.classList.remove("active-priority");
+      });
 
-          priorityLabel.textContent = `⚡ ${newPriority}`;
-          priorityLabel.title = `Filter by priority: ${newPriority}`;
-          li.dataset.priority = newPriority;
-
-          select.replaceWith(priorityLabel);
-
-          if (currentUser) {
-              const { error } = await supabase
-                .from("tasks")
-                .update({ priority: newPriority })
-                .eq("id", task.id)
-                .eq("user_id", currentUser.id);
-              if (error) console.error("Failed to update priority (Supabase):", error.message);
-          } else {
-              let guestTasks = getGuestTasks();
-              const taskIndex = guestTasks.findIndex(t => t.id == task.id);
-              if (taskIndex !== -1) {
-                  guestTasks[taskIndex].priority = newPriority;
-                  saveGuestTasks(guestTasks);
-              }
-          }
-        }
-
-        select.addEventListener("blur", savePriority);
-        select.addEventListener("keydown", e => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            savePriority();
-          }
-        });
-
-        priorityLabel.replaceWith(select);
-        select.focus();
-      } else {
-        const allTasks = document.querySelectorAll("#taskList li");
-        const isActive = priorityLabel.classList.toggle("active-priority");
-
-        allTasks.forEach(taskEl => {
-          const taskPriority = taskEl.dataset.priority;
-          const shouldShow = isActive ? taskPriority === (task.priority || "Medium") : true;
-          taskEl.style.display = shouldShow ? "" : "none";
-        });
-
-        document.querySelectorAll(".priority-label").forEach(label => {
-          if (label !== priorityLabel) label.classList.remove("active-priority");
-        });
-
-        if (!isActive) {
-          allTasks.forEach(taskEl => taskEl.style.display = "");
-        }
+      if (!isActive) {
+        allTasks.forEach(taskEl => taskEl.style.display = "");
       }
     });
+    li.appendChild(priorityLabel); // Appended after categoryLabel
 
-    // Edit button
+
+
+
+
+    // Task Actions container
+    const taskActions = document.createElement("div");
+    taskActions.classList.add("task-actions");
+
+    // Edit button - Now opens modal
     const editBtn = document.createElement("button");
     editBtn.classList.add("edit-button");
     editBtn.style.cursor = "pointer";
     editBtn.title = "Edit task";
-    editBtn.innerHTML = `✏️`;
+    editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+      <path d="m5.433 13.917 1.262-4.992a.75.75 0 0 1 .15-.276l4.636-4.635a2.125 2.125 0 0 1 3 3l-4.636 4.635a.75.75 0 0 1-.276.15l-4.992 1.262a.75.75 0 0 1-.952-.952Z" />
+    </svg>`; // SVG for edit icon
     editBtn.setAttribute('aria-label', 'Edit task');
-
-
-    editBtn.addEventListener("click", async () => {
-      const input = document.createElement("input");
-      input.type = "text";
-      input.value = span.getAttribute("data-raw");
-      input.className = "task-edit-input";
-
-      categoryLabel.style.display = "none";
-      priorityLabel.style.display = "none";
-      dueDateDisplay.style.display = "none";
-      dueDateInput.style.display = "none";
-      dueTimeInput.style.display = "none"; // NEW: Hide time input
-      notificationTimeDisplay.style.display = "none";
-      notificationTimeInput.style.display = "none";
-      timerDisplay.style.display = "none";
-      startTimerBtn.style.display = "none";
-      stopTimerBtn.style.display = "none";
-
-      span.replaceWith(input);
-      input.focus();
-
-      async function save() {
-        const val = input.value.trim();
-        if (val !== "") {
-          span.innerHTML = marked.parse(val);
-          span.setAttribute("data-raw", val);
-          span.className = "task-text";
-          if (currentUser) {
-              const { error } = await supabase
-                .from("tasks")
-                .update({ content: val })
-                .eq("id", task.id)
-                .eq("user_id", currentUser.id);
-              if (error) console.error("Failed to update task content (Supabase):", error.message);
-          } else {
-              let guestTasks = getGuestTasks();
-              const taskIndex = guestTasks.findIndex(t => t.id == task.id);
-              if (taskIndex !== -1) {
-                  guestTasks[taskIndex].content = val;
-                  saveGuestTasks(guestTasks);
-              }
-          }
-        }
-        input.replaceWith(span);
-
-        categoryLabel.style.display = "";
-        priorityLabel.style.display = "";
-        dueDateDisplay.style.display = "";
-        notificationTimeDisplay.style.display = "";
-        timerDisplay.style.display = "";
-        startTimerBtn.style.display = "";
-        stopTimerBtn.style.display = "";
-      }
-
-      input.addEventListener("blur", save);
-      input.addEventListener("keydown", e => {
-        if (e.key === "Enter") input.blur();
-        if (e.key === "Escape") {
-          input.replaceWith(span);
-          categoryLabel.style.display = "";
-          priorityLabel.style.display = "";
-          dueDateDisplay.style.display = "";
-          notificationTimeDisplay.style.display = "";
-          timerDisplay.style.display = "";
-          startTimerBtn.style.display = "";
-          stopTimerBtn.style.display = "";
-        }
-      });
-    });
-
-    // Timer display
-    const timerDisplay = document.createElement("span");
-    timerDisplay.textContent = formatTime(parseInt(li.dataset.elapsed, 10) || 0);
-    timerDisplay.classList.add("task-timer");
-
-    // Timer buttons
-    const startTimerBtn = document.createElement("button");
-    startTimerBtn.textContent = "⏵";
-    startTimerBtn.classList.add("timer-button");
-    startTimerBtn.addEventListener("click", () => startTaskTimer(li));
-
-
-    const stopTimerBtn = document.createElement("button");
-    stopTimerBtn.textContent = "⏹";
-    stopTimerBtn.classList.add("timer-button", "stop");
-    stopTimerBtn.disabled = true;
-    stopTimerBtn.addEventListener("click", () => stopTaskTimer(li));
+    editBtn.addEventListener("click", () => showEditModal(task)); // Call showEditModal
+    taskActions.appendChild(editBtn);
 
     // Delete button
     const deleteBtn = document.createElement("button");
-    deleteBtn.textContent = "X";
+    deleteBtn.textContent = ""; // Text removed, using SVG
     deleteBtn.classList.add("delete-button");
+    deleteBtn.innerHTML = ``; // SVG for delete icon
     deleteBtn.addEventListener("click", async () => {
       showCustomConfirm("Are you sure you want to delete this task?", async () => {
           const taskId = li.dataset.taskId;
-          if (activeTaskId && activeTaskId.dataset.taskId === taskId) {
-            stopTaskTimer(li);
-          }
-
           await deleteTask(taskId);
-
           taskList.removeChild(li);
           updateTaskCounter();
       });
     });
+    taskActions.appendChild(deleteBtn);
+
+    // Append Task Actions
+    li.appendChild(taskActions);
 
 
     // Drag & drop handlers
@@ -1312,22 +875,6 @@ function createTaskElement(task) {
       }
     });
 
-    // Append elements
-    li.appendChild(checkbox);
-    li.appendChild(span);
-    li.appendChild(editBtn);
-    li.appendChild(dueDateDisplay);
-    li.appendChild(dueDateInput);
-    li.appendChild(dueTimeInput); // NEW: Append time input
-    li.appendChild(notificationTimeDisplay);
-    li.appendChild(notificationTimeInput);
-    li.appendChild(categoryLabel);
-    li.appendChild(priorityLabel);
-    li.appendChild(timerDisplay);
-    li.appendChild(startTimerBtn);
-    li.appendChild(stopTimerBtn);
-    li.appendChild(deleteBtn);
-
     return li;
   }
 
@@ -1335,18 +882,20 @@ async function addTaskFromInput() {
     const taskInput = document.getElementById("taskInput");
     const categorySelect = document.getElementById("categorySelect");
     const prioritySelect = document.getElementById("prioritySelect");
-    const dueDateInput = document.getElementById("taskDueDate");
-    const dueTimeInput = document.getElementById("taskDueTime"); // NEW: Get time input
-    const notificationTimeInput = document.getElementById("notificationTimeInput");
+    const dueDateInput = document.getElementById("dueDate"); // Updated ID
+    const dueTimeInput = document.getElementById("dueTime"); // Updated ID
     const taskList = document.getElementById("taskList");
 
     const taskText = taskInput.value.trim();
-    if (!taskText) return;
+    if (!taskText) {
+        showCustomAlert("Please enter a task description.");
+        return;
+    }
 
     const category = categorySelect.value;
     const priority = prioritySelect.value;
-    
-    // Combine date and time into a single ISO string
+
+    // Combine date and time into a single ISO string for due_date
     let dueDateTime = null;
     const datePart = dueDateInput.value;
     const timePart = dueTimeInput.value;
@@ -1356,32 +905,32 @@ async function addTaskFromInput() {
         const combinedLocalDateTimeString = `${datePart}T${timePart || '00:00'}:00`;
         const localDateObj = new Date(combinedLocalDateTimeString);
 
-        console.log("addTaskFromInput - Local Date Obj from inputs (interpreted locally):", localDateObj);
-
         if (!isNaN(localDateObj.getTime())) {
             // Convert this local Date object to its UTC ISO string for storage
             dueDateTime = localDateObj.toISOString();
-            console.log("addTaskFromInput - Converted to ISO String for DB (should be UTC):", dueDateTime);
         } else {
             console.error("addTaskFromInput - Invalid date/time parsed:", combinedLocalDateTimeString);
         }
     }
 
-    const notificationTime = notificationTimeInput.value ? parseInt(notificationTimeInput.value, 10) : null;
+    // `notificationTime` (offset in minutes) is not set directly from the add task form
+    // If you need it, add a separate input for it in the add task section.
+    const newTask = await addTask(taskText, category, priority, dueDateTime, null); // Passing null for notification offset
 
-    const newTask = await addTask(taskText, category, priority, dueDateTime, notificationTime);
     if (!newTask) return;
 
-    const li = createTaskElement(newTask);
-    taskList.appendChild(li);
+    // No need to create element and append, loadTasks() will re-render everything
+    // const li = createTaskElement(newTask);
+    // taskList.appendChild(li);
 
     taskInput.value = "";
     categorySelect.value = "Personal";
     prioritySelect.value = "Medium";
     dueDateInput.value = "";
-    dueTimeInput.value = ""; // NEW: Clear time input
-    notificationTimeInput.value = "15";
+    dueTimeInput.value = "";
+    // notificationTimeInput.value = "15"; // Removed as this input is now for dueTime
     updateTaskCounter();
+    await loadTasks(); // Reload tasks to ensure new task is rendered and sorted
 }
 
 
@@ -1480,6 +1029,121 @@ function showCustomPrompt(message, onConfirm, defaultValue = '') {
     });
 }
 
+// --- NEW: Task Edit Modal Logic ---
+const editTaskModal = document.getElementById("editTaskModal");
+const closeEditModalButton = document.getElementById("closeEditModal");
+const saveEditButton = document.getElementById("saveEditButton");
+const cancelEditButton = document.getElementById("cancelEditButton");
+
+const editTaskId = document.getElementById("editTaskId");
+const editTaskContent = document.getElementById("editTaskContent");
+const editCategorySelect = document.getElementById("editCategorySelect");
+const editPrioritySelect = document.getElementById("editPrioritySelect");
+const editDueDate = document.getElementById("editDueDate");
+const editDueTime = document.getElementById("editDueTime"); // New ID for due time in modal
+const editNotificationOffset = document.getElementById("editNotificationOffset"); // New ID for notification offset in modal
+
+
+function showEditModal(task) {
+    editTaskId.value = task.id;
+    editTaskContent.value = task.content;
+    
+    // Ensure the category and priority options exist in the select boxes
+    ensureOptionExists(editCategorySelect, task.category);
+    ensureOptionExists(editPrioritySelect, task.priority);
+
+    editCategorySelect.value = task.category || "Personal";
+    editPrioritySelect.value = task.priority || "Medium";
+
+    // Format due_date for input[type="date"] and due_time for input[type="time"]
+    if (task.due_date) {
+        const dueDateObj = new Date(task.due_date);
+        if (!isNaN(dueDateObj.getTime())) {
+            editDueDate.value = dueDateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+            // Get local hours and minutes for the time input
+            const localHours = String(dueDateObj.getHours()).padStart(2, '0');
+            const localMinutes = String(dueDateObj.getMinutes()).padStart(2, '0');
+            editDueTime.value = `${localHours}:${localMinutes}`; // HH:MM
+        } else {
+            editDueDate.value = '';
+            editDueTime.value = '';
+        }
+    } else {
+        editDueDate.value = '';
+        editDueTime.value = '';
+    }
+
+    // Set notification offset
+    editNotificationOffset.value = task.notification_time !== null ? task.notification_time : '';
+
+    editTaskModal.style.display = "flex"; // Use flex to center
+}
+
+function ensureOptionExists(selectElement, value) {
+    if (value && value !== "__custom__") {
+        const exists = Array.from(selectElement.options).some(opt => opt.value === value);
+        if (!exists) {
+            const newOption = document.createElement("option");
+            newOption.value = value;
+            newOption.textContent = value;
+            // Insert before the "__custom__" option
+            selectElement.insertBefore(newOption, selectElement.lastElementChild);
+        }
+    }
+}
+
+
+function hideEditModal() {
+    editTaskModal.style.display = "none";
+}
+
+async function saveEditedTask() {
+    const taskId = editTaskId.value;
+    const content = editTaskContent.value.trim();
+    const category = editCategorySelect.value;
+    const priority = editPrioritySelect.value;
+    const dueDate = editDueDate.value; // YYYY-MM-DD string
+    const dueTime = editDueTime.value; // HH:MM string
+    const notificationOffset = editNotificationOffset.value ? parseInt(editNotificationOffset.value, 10) : null;
+
+    if (!content) {
+        showCustomAlert("Task content cannot be empty.");
+        return;
+    }
+
+    let updatedDueDateTime = null;
+    if (dueDate) {
+        // Combine date and time to form the full due_date ISO string
+        // Use the dueTime from the modal, default to 00:00 if not set
+        const combinedLocalDateTimeString = `${dueDate}T${dueTime || '00:00'}:00`;
+        const localDateObj = new Date(combinedLocalDateTimeString);
+
+        if (!isNaN(localDateObj.getTime())) {
+            updatedDueDateTime = localDateObj.toISOString(); // Convert local Date object to UTC ISO string for storage
+        } else {
+            console.error("saveEditedTask - Invalid date/time parsed:", combinedLocalDateTimeString);
+        }
+    }
+
+    let updates = {
+        content: content,
+        category: category,
+        priority: priority,
+        due_date: updatedDueDateTime, // This will be null if no date is set
+        notification_time: notificationOffset, // This will be null if no offset is set
+    };
+
+    try {
+        await updateTask(taskId, updates); // Use the existing updateTask function
+        await loadTasks(); // Reload tasks to reflect changes
+        hideEditModal();
+        showCustomAlert("Task updated successfully!");
+    } catch (error) {
+        console.error("Error saving edited task:", error);
+        showCustomAlert("Failed to save task changes.");
+    }
+}
+
 
 // --- Main Init Function ---
 function init() {
@@ -1533,14 +1197,13 @@ function init() {
   const notesSidebar = document.getElementById("notesSidebar");
   const closeNotesBtn = document.getElementById("closeNotes");
   const notesInput = document.getElementById('notes');
-  const notesOutput = document.getElementById('sidebar-notes-output');
-
+  // const notesOutput = document.getElementById('sidebar-notes-output'); // Removed from HTML
 
   toggleNotesBtn?.addEventListener("click", () => {
     notesSidebar?.classList.add("open");
     if (toggleNotesBtn) toggleNotesBtn.style.display = "none";
     document.body.classList.add("notes-open");
-    loadNote().then(() => renderNotesMarkdown());
+    loadNote(); // No need to render markdown on toggle, only on input
   });
 
   closeNotesBtn?.addEventListener("click", () => {
@@ -1550,14 +1213,15 @@ function init() {
     if (notesInput) saveNote(notesInput.value);
   });
 
-  function renderNotesMarkdown() {
-    if (notesInput && notesOutput) {
-      const markdown = notesInput.value;
-      const html = marked.parse(markdown);
-      notesOutput.innerHTML = html;
-    }
-  }
-  notesInput?.addEventListener('input', renderNotesMarkdown);
+  // Removed renderNotesMarkdown function as it was for a preview div not currently in HTML
+  // function renderNotesMarkdown() {
+  //   if (notesInput && notesOutput) {
+  //     const markdown = notesInput.value;
+  //     const html = marked.parse(markdown);
+  //     notesOutput.innerHTML = html;
+  //   }
+  // }
+  // notesInput?.addEventListener('input', renderNotesMarkdown); // No longer needed if no output div
   notesInput?.addEventListener('blur', () => {
       if (notesInput) saveNote(notesInput.value);
   });
@@ -1567,7 +1231,7 @@ function init() {
   const taskList = document.getElementById("taskList");
 
   document.getElementById('resetCountBtn')?.addEventListener('click', async () => {
-    showCustomConfirm("Are you sure you want to delete ALL tasks? This cannot be undone.", async () => {
+    showCustomConfirm("Are you sure you want to delete all tasks? This cannot be undone.", async () => {
         if (currentUser) {
             const { error } = await supabase.from('tasks').delete().eq('user_id', currentUser.id);
             if (error) console.error("Error resetting all tasks for user:", error.message);
@@ -1581,7 +1245,6 @@ function init() {
             saveGuestTasks([]);
             renderTasks([]);
             updateTaskCounter();
-            showCustomAlert("All tasks reset for guest mode (on this device).");
         }
     });
   });
@@ -1619,7 +1282,7 @@ function init() {
     updateTaskCounter();
   });
 
-  // --- Category and Priority Custom Options ---
+  // --- Category and Priority Custom Options for ADDING tasks ---
   const categorySelect = document.getElementById("categorySelect");
   const prioritySelect = document.getElementById("prioritySelect");
 
@@ -1668,6 +1331,75 @@ function init() {
             }
           } else {
             prioritySelect.value = "Medium";
+          }
+      }, "Medium");
+    }
+  });
+
+  // --- Event Listeners for Edit Modal ---
+  if (closeEditModalButton) {
+    closeEditModalButton.addEventListener("click", hideEditModal);
+  }
+  if (cancelEditButton) {
+    cancelEditButton.addEventListener("click", hideEditModal);
+  }
+  if (saveEditButton) {
+    saveEditButton.addEventListener("click", saveEditedTask);
+  }
+
+  // Close modal if user clicks outside
+  window.addEventListener("click", (event) => {
+    if (event.target === editTaskModal) {
+      hideEditModal();
+    }
+  });
+
+  // Add listeners for custom categories/priorities in the EDIT modal as well
+  editCategorySelect?.addEventListener("change", () => {
+    if (editCategorySelect.value === "__custom__") {
+      showCustomPrompt("Enter new category:", (newCategory) => {
+          if (newCategory && newCategory.trim()) {
+            const trimmedCategory = newCategory.trim();
+            const exists = Array.from(editCategorySelect.options).some(
+              opt => opt.value.toLowerCase() === trimmedCategory.toLowerCase()
+            );
+            if (!exists) {
+              const newOption = document.createElement("option");
+              newOption.value = trimmedCategory;
+              newOption.textContent = trimmedCategory;
+              editCategorySelect.insertBefore(newOption, editCategorySelect.lastElementChild);
+              editCategorySelect.value = trimmedCategory;
+            } else {
+              showCustomAlert("That category already exists.");
+              editCategorySelect.value = "Personal";
+            }
+          } else {
+            editCategorySelect.value = "Personal";
+          }
+      }, "Personal");
+    }
+  });
+
+  editPrioritySelect?.addEventListener("change", () => {
+    if (editPrioritySelect.value === "__custom__") {
+      showCustomPrompt("Enter new priority:", (newPriority) => {
+          if (newPriority && newPriority.trim()) {
+            const trimmedPriority = newPriority.trim();
+            const exists = Array.from(editPrioritySelect.options).some(
+              opt => opt.value.toLowerCase() === trimmedPriority.toLowerCase()
+            );
+            if (!exists) {
+              const newOption = document.createElement("option");
+              newOption.value = trimmedPriority;
+              newOption.textContent = trimmedPriority;
+              editPrioritySelect.insertBefore(newOption, editPrioritySelect.lastElementChild);
+              editPrioritySelect.value = trimmedPriority;
+            } else {
+              showCustomAlert("That priority already exists.");
+              editPrioritySelect.value = "Medium";
+            }
+          } else {
+            editPrioritySelect.value = "Medium";
           }
       }, "Medium");
     }
