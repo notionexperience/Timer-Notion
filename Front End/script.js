@@ -797,7 +797,7 @@ function createTaskElement(task) {
     notificationTimeInput.min = "0";
     notificationTimeInput.value = task.notification_time !== null ? task.notification_time : 15;
     notificationTimeInput.style.display = 'none';
-    notificationTimeInput.placeholder = "Notify (mins before)";
+    notificationTimeInput.placeholder = "🔔";
 
 
     function updateDueDateDisplayAndClasses() {
@@ -836,7 +836,7 @@ function createTaskElement(task) {
 
     function updateNotificationTimeDisplay() {
         if (task.notification_time !== null && task.due_date) {
-            notificationTimeDisplay.textContent = `🔔 ${task.notification_time} min before`;
+            notificationTimeDisplay.textContent = `🔔 ${task.notification_time} min`;
             notificationTimeDisplay.style.display = 'inline-block';
         } else {
             notificationTimeDisplay.textContent = `🔔 No notification`;

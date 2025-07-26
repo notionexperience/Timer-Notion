@@ -197,7 +197,7 @@ hr.custom-hr {
 #mainContent {
   padding-top: 10px; /* Increased padding */
   width: 100%; /* Changed to 100% */
-  max-width: 75%; /* Removed max-width restriction */
+  max-width: 95%; /* Removed max-width restriction */
   margin: 0; /* Changed from 0 auto to 0 to prevent centering */
   display: flex;
   flex-direction: column;
