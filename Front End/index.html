@@ -58,29 +58,36 @@
         <button id="startButton" class="button" disabled>Start</button>
         <button id="stopButton" class="button" disabled>Stop</button>
       </div>
-      <hr class="custom-hr" />
+      <hr class="custom-hr" /> 
+           <input type="text" id="taskInput" placeholder="Add a new task..." class="input" />
       <div class="task-control-row">
-        <input type="text" id="taskInput" placeholder="Add a new task..." class="input" />
   
-        <button id="addTaskButton" class="button">Add Task</button> 
-       </div><hr class="custom-hr" />
+
       </div>
-      <div class="task-control-row">          
-              <input type="date" id="taskDueDate" class="date-input" title="Set due date" /> <!-- Added this line -->
+
+      <div class="task-control-row">     
+    
+              <input type="date" id="taskDueDate" class="date-input" title="Set due date" />
+              <!-- NEW: Time input for task due time -->
+              <input type="time" id="taskDueTime" class="time-input" title="Set due time" />
+              <input type="number" id="notificationTimeInput" class="input" placeholder="Notify (mins before)" title="Minutes before due date to notify" min="0" value="15" />
             <select id="categorySelect" class="select-box" aria-label="Select task category">
                 <option value="Personal">Personal</option>
+                <option value="Home">Home</option>
                 <option value="Work">Work</option>
                 <option value="Health">Health</option>
                 <option value="Finance">Finance</option>
                 <option value="__custom__">Add New Category…</option>
             </select>
             <select id="prioritySelect" class="select-box" aria-label="Select task priority">
-                <option value="Low">Low</option>
-                <option value="Medium" selected>Medium</option>
-                <option value="High">High</option>
+                <option value="Scheduled">Scheduled</option>
                 <option value="Urgent">Urgent</option>
+                <option value="High">High</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="Low">Low</option>
                 <option value="__custom__">Add New Priority…</option>
-            </select>  
+            </select>   
+                <button id="addTaskButton" class="button">Add Task</button>    
             <div id="taskCountToday" class="task-counter-line">
                 <div class="task-counter-content">
                     <div class="counter-text">

@@ -27,10 +27,10 @@ body[data-theme="dark"] {
   --select-bg: #2a2a2a;
   --highlight-color: #4aa2ff;
   --title-color: #007bff; /* Title color for dark theme */
-  --today-task-bg: #4a4a00; /* Darker yellow for today's tasks */
-  --today-task-border: #666600;
-  --overdue-task-bg: #6a0000; /* Darker red for overdue tasks */
-  --overdue-task-border: #8b0000;
+  --today-task-bg: #4a4a0037; /* Darker yellow for today's tasks */
+  --today-task-border: #66660088;
+  --overdue-task-bg: #6a000036; /* Darker red for overdue tasks */
+  --overdue-task-border: #8b0000a0;
 }
 
 /* --- CSS Reset and Base Setup --- */
@@ -331,6 +331,23 @@ body[data-theme="dark"] input[type="date"].date-input {
     color-scheme: dark; /* Ensures date picker calendar is dark */
 }
 
+/* NEW: Time input specific styling */
+input[type="time"].time-input {
+    width: auto; /* Adjust width as needed */
+    min-width: 120px; /* Minimum width for time input */
+    padding: 10px 14px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background-color: var(--input-bg);
+    color: var(--fg);
+    text-align: left;
+    box-sizing: border-box;
+}
+body[data-theme="dark"] input[type="time"].time-input {
+    color-scheme: dark; /* Ensures time picker is dark */
+}
+
 
 .select-box {
   appearance: none;
@@ -394,11 +411,13 @@ body[data-theme="dark"] .select-box {
 }
 
 #taskInput {
-  flex-grow: 1;
+display: flex;
+  justify-self: center;
   padding: 10px;
+  margin-bottom: 20px;
   font-size: 14px;
   border: 1px solid #ccc;
-  width: 80%;
+  width: 60%;
   text-align: left;
   border-radius: 6px;
 }
@@ -617,11 +636,11 @@ body[data-theme="dark"] .task-text code {
 }
 
 .reset-button {
-  background-color: #dc3545;
+  background-color: #535353;
   border: none;
   color: white;
   padding: 6px 12px;
-  font-size: 14px;
+  font-size: 12px;
   border-radius: 5px;
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -652,7 +671,8 @@ body[data-theme="dark"] .task-text code {
 
 .category-label,
 .priority-label,
-.due-date-display { /* Added due-date-display */
+.due-date-display, /* due-date-display will now show date & time */
+.notification-time-display { /* Added notification-time-display */
   display: inline-block;
   background-color: var(--select-bg);
   color: var(--fg);
@@ -676,14 +696,16 @@ body[data-theme="dark"] .task-text code {
 /* Hover states for category and priority labels */
 .category-label:hover,
 .priority-label:hover,
-.due-date-display:hover { /* Added due-date-display */
+.due-date-display:hover, /* Added due-date-display */
+.notification-time-display:hover { /* Added notification-time-display */
   background-color: #ccc;
 }
 
 /* Dark theme hover states */
 body[data-theme="dark"] .category-label:hover,
 body[data-theme="dark"] .priority-label:hover,
-body[data-theme="dark"] .due-date-display:hover { /* Added due-date-display */
+body[data-theme="dark"] .due-date-display:hover, /* Added due-date-display */
+body[data-theme="dark"] .notification-time-display:hover { /* Added notification-time-display */
   background-color: #333;
 }
 
@@ -705,10 +727,10 @@ body[data-theme="dark"] .due-date-display:hover { /* Added due-date-display */
 }
 
 .task-counter-content .count {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: bold;
   color: var(--button-bg);
-  min-width: 30px;
+  min-width: 20px;
 }
 
 .task-counter-content .label {
@@ -719,7 +741,6 @@ body[data-theme="dark"] .due-date-display:hover { /* Added due-date-display */
 .counter-text {
   display: flex;
   flex-direction: column;
-  padding-left: 8px;
   padding-right: 16px;
 }
 
@@ -734,13 +755,13 @@ body[data-theme="dark"] .due-date-display:hover { /* Added due-date-display */
   justify-content: center;
   flex-wrap: wrap;
   width: 100%; /* Ensure it takes full width */
-  gap: 15px;
+  gap: 12px;
 }
 
 .task-counter-line {
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 15px 20px; /* Increased padding */
+  padding: 8px 10px; /* Increased padding */
   background-color: var(--card-bg);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   display: flex;
@@ -966,7 +987,8 @@ body[data-theme="dark"] .due-date-display:hover { /* Added due-date-display */
   }
 
   .select-box,
-  input[type="date"].date-input { /* Apply to date input as well */
+  input[type="date"].date-input, /* Apply to date input as well */
+  input[type="time"].time-input { /* NEW: Apply to time input */
     min-width: 100%; /* Ensure select boxes take full width */
   }
 
@@ -1088,7 +1110,8 @@ body[data-theme="dark"] .due-date-display:hover { /* Added due-date-display */
 
   .category-label,
   .priority-label,
-  .due-date-display { /* Added due-date-display */
+  .due-date-display, /* Added due-date-display */
+  .notification-time-display { /* Added notification-time-display */
     width: 100%; /* Full width for labels */
     text-align: center;
     font-size: 14px;
