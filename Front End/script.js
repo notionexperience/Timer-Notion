@@ -640,46 +640,37 @@ function createTaskElement(task) {
     checkbox.checked = task.is_done || false;
 
     checkbox.addEventListener("change", async () => {
-      if (checkbox.checked) {
+      const taskId = li.dataset.taskId;
+      const isChecked = checkbox.checked;
+
+      if (isChecked) {
         li.classList.add("finished");
+        // Re-sort to move finished tasks to the bottom
         const finishedTasks = [...taskList.children].filter(item => item.classList.contains("finished"));
         const lastFinished = finishedTasks[finishedTasks.length - 1];
         if (lastFinished) {
           taskList.insertBefore(li, lastFinished.nextSibling);
         } else {
-          taskList.appendChild(li);
+          taskList.appendChild(li); // Should go to end if no other finished tasks
         }
         clearScheduledNotification(task.id);
       } else {
         li.classList.remove("finished");
+        // Re-sort to move unfinished tasks to the top, maintaining order
         const firstUnfinished = [...taskList.children].find(item => !item.classList.contains("finished"));
         if (firstUnfinished) {
           taskList.insertBefore(li, firstUnfinished);
         } else {
-          taskList.prepend(li);
+          taskList.prepend(li); // Should go to beginning if no other unfinished tasks
         }
         scheduleTaskNotification(task);
       }
 
-      const taskId = li.dataset.taskId;
       if (taskId) {
-        if (currentUser) {
-            const { error } = await supabase
-              .from("tasks")
-              .update({ is_done: checkbox.checked })
-              .eq("id", taskId)
-              .eq("user_id", currentUser.id);
-            if (error) console.error("Update error (Supabase):", error.message);
-        } else {
-            let guestTasks = getGuestTasks();
-            const taskIndex = guestTasks.findIndex(t => t.id == Number(taskId));
-            if (taskIndex !== -1) {
-                guestTasks[taskIndex].is_done = checkbox.checked;
-                saveGuestTasks(guestTasks);
-            }
-        }
+        // IMPORTANT: Update the task in Supabase or Local Storage
+        await updateTask(taskId, { is_done: isChecked });
       }
-      await updateTaskPositionsInDB();
+      await updateTaskPositionsInDB(); // Update positions after re-ordering
       updateTaskCounter();
     });
     li.appendChild(checkbox);
@@ -781,8 +772,6 @@ function createTaskElement(task) {
 
 
 
-
-
     // Task Actions container
     const taskActions = document.createElement("div");
     taskActions.classList.add("task-actions");
@@ -803,7 +792,9 @@ function createTaskElement(task) {
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = ""; // Text removed, using SVG
     deleteBtn.classList.add("delete-button");
-    deleteBtn.innerHTML = ``; // SVG for delete icon
+    deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+      <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.278a.75.75 0 1 0 .14 1.494l.147-.017c.73-.086 1.46-.174 2.18-.26V15a2.75 2.75 0 0 0 2.75 2.75h2.5A2.75 2.75 0 0 0 14 15V4.458c.72.086 1.45.174 2.18.26l.147.017a.75.75 0 1 0 .14-1.494l-2.365-.278V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.828 0 1.5.672 1.5 1.5v7.75a.75.75 0 0 1-1.5 0V5.5c0-.828.672-1.5 1.5-1.5Zm-3.5 1.5c0-.828.672-1.5 1.5-1.5h1.5c.828 0 1.5.672 1.5 1.5v7.75a.75.75 0 0 1-1.5 0V5.5c0-.828-.672-1.5-1.5-1.5h-1.5Zm6.5-1.5h-1.5c-.828 0-1.5.672-1.5 1.5v7.75a.75.75 0 0 1-1.5 0V5.5c0-.828.672-1.5 1.5-1.5h1.5c.828 0 1.5.672 1.5 1.5v7.75a.75.75 0 0 1-1.5 0V5.5c0-.828-.672-1.5-1.5-1.5Z" clip-rule="evenodd" />
+    </svg>`; // SVG for delete icon
     deleteBtn.addEventListener("click", async () => {
       showCustomConfirm("Are you sure you want to delete this task?", async () => {
           const taskId = li.dataset.taskId;
