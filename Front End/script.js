@@ -540,20 +540,19 @@ function getTodayDateString() {
 // Function to schedule a single task notification
 function scheduleTaskNotification(task) {
     // Only schedule if user is logged in, task has a due date, and is not done.
-    // Notification permission will be checked inside the setTimeout callback for flexibility.
-    if (!currentUser || !task.due_date || task.is_done) { //
-        clearScheduledNotification(task.id); //
-        return; //
+    if (!currentUser || !task.due_date || task.is_done) {
+        clearScheduledNotification(task.id);
+        return;
     }
 
     clearScheduledNotification(task.id); // Clear any existing notification for this task
 
-    const dueDateTime = new Date(task.due_date); // due_date is now expected to be a full ISO string
+    const dueDateTime = new Date(task.due_date);
 
     // If dueDateTime is invalid (e.g., only date was provided without time, or malformed)
-    if (isNaN(dueDateTime.getTime())) { //
-        console.warn(`Invalid due_date for task ${task.id}: ${task.due_date}. Cannot schedule notification.`); //
-        return; //
+    if (isNaN(dueDateTime.getTime())) {
+        console.warn(`Invalid due_date for task ${task.id}: ${task.due_date}. Cannot schedule notification.`);
+        return;
     }
 
     // Default to 15 minutes before, or use the task's specified offset
@@ -562,29 +561,23 @@ function scheduleTaskNotification(task) {
     // Calculate the exact timestamp for the notification
     const notificationTimestamp = dueDateTime.getTime() - (notificationTimeOffset * 60 * 1000);
 
-    const now = Date.now(); //
-    const timeUntilNotification = notificationTimestamp - now; //
+    const now = Date.now();
+    const timeUntilNotification = notificationTimestamp - now;
 
-    if (timeUntilNotification > 0) { //
-        console.log(`Scheduling notification for task "${task.content}" in ${timeUntilNotification / 1000 / 60} minutes.`); //
+    if (timeUntilNotification > 0) {
+        console.log(`Scheduling in-app notification for task "${task.content}" in ${timeUntilNotification / 1000 / 60} minutes.`);
         const timeoutId = setTimeout(() => {
             const formattedDueTime = new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const notificationMessage = `Task due soon: ${task.content} at ${formattedDueTime}`;
 
-            if ("Notification" in window && Notification.permission === "granted") { // Check if browser notifications are allowed
-                new Notification("FocusFlow Task Reminder", {
-                    body: notificationMessage,
-                    icon: "./assets/logo.png"
-                });
-            } else {
-                // Fallback to in-app custom alert if browser notifications are not granted
-                showCustomAlert(`Reminder: ${notificationMessage}`);
-            }
-            delete notificationTimers[task.id]; //
-        }, timeUntilNotification); //
-        notificationTimers[task.id] = timeoutId; //
+            // Only show in-app custom alert
+            showCustomAlert(`Reminder: ${notificationMessage}`);
+            
+            delete notificationTimers[task.id];
+        }, timeUntilNotification);
+        notificationTimers[task.id] = timeoutId;
     } else {
-        console.log(`Notification for task "${task.content}" is in the past or too soon to schedule.`); //
+        console.log(`In-app notification for task "${task.content}" is in the past or too soon to schedule.`);
     }
 }
 
