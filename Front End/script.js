@@ -539,11 +539,11 @@ function getTodayDateString() {
 
 // Function to schedule a single task notification
 function scheduleTaskNotification(task) {
-    // Only schedule if user is logged in, notification permission is granted, and task has a due date
-    // and is not done. Notification time is optional.
-    if (!currentUser || Notification.permission !== "granted" || !task.due_date || task.is_done) {
-        clearScheduledNotification(task.id);
-        return;
+    // Only schedule if user is logged in, task has a due date, and is not done.
+    // Notification permission will be checked inside the setTimeout callback for flexibility.
+    if (!currentUser || !task.due_date || task.is_done) { //
+        clearScheduledNotification(task.id); //
+        return; //
     }
 
     clearScheduledNotification(task.id); // Clear any existing notification for this task
@@ -551,30 +551,40 @@ function scheduleTaskNotification(task) {
     const dueDateTime = new Date(task.due_date); // due_date is now expected to be a full ISO string
 
     // If dueDateTime is invalid (e.g., only date was provided without time, or malformed)
-    if (isNaN(dueDateTime.getTime())) {
-        console.warn(`Invalid due_date for task ${task.id}: ${task.due_date}. Cannot schedule notification.`);
-        return;
+    if (isNaN(dueDateTime.getTime())) { //
+        console.warn(`Invalid due_date for task ${task.id}: ${task.due_date}. Cannot schedule notification.`); //
+        return; //
     }
 
-    const notificationTimeOffset = task.notification_time !== null ? parseInt(task.notification_time, 10) : 15; // Default to 15 mins
+    // Default to 15 minutes before, or use the task's specified offset
+    const notificationTimeOffset = task.notification_time !== null ? parseInt(task.notification_time, 10) : 15;
 
-    const notificationTimestamp = dueDateTime.getTime() - (notificationTimeOffset * 60 * 1000); // Subtract minutes in milliseconds
+    // Calculate the exact timestamp for the notification
+    const notificationTimestamp = dueDateTime.getTime() - (notificationTimeOffset * 60 * 1000);
 
-    const now = Date.now();
-    const timeUntilNotification = notificationTimestamp - now;
+    const now = Date.now(); //
+    const timeUntilNotification = notificationTimestamp - now; //
 
-    if (timeUntilNotification > 0) {
-        console.log(`Scheduling notification for task "${task.content}" in ${timeUntilNotification / 1000 / 60} minutes.`);
+    if (timeUntilNotification > 0) { //
+        console.log(`Scheduling notification for task "${task.content}" in ${timeUntilNotification / 1000 / 60} minutes.`); //
         const timeoutId = setTimeout(() => {
-            new Notification("FocusFlow Task Reminder", {
-                body: `Task due soon: ${task.content} at ${new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-                icon: "./assets/logo.png"
-            });
-            delete notificationTimers[task.id];
-        }, timeUntilNotification);
-        notificationTimers[task.id] = timeoutId;
+            const formattedDueTime = new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const notificationMessage = `Task due soon: ${task.content} at ${formattedDueTime}`;
+
+            if ("Notification" in window && Notification.permission === "granted") { // Check if browser notifications are allowed
+                new Notification("FocusFlow Task Reminder", {
+                    body: notificationMessage,
+                    icon: "./assets/logo.png"
+                });
+            } else {
+                // Fallback to in-app custom alert if browser notifications are not granted
+                showCustomAlert(`Reminder: ${notificationMessage}`);
+            }
+            delete notificationTimers[task.id]; //
+        }, timeUntilNotification); //
+        notificationTimers[task.id] = timeoutId; //
     } else {
-        console.log(`Notification for task "${task.content}" is in the past or too soon to schedule.`);
+        console.log(`Notification for task "${task.content}" is in the past or too soon to schedule.`); //
     }
 }
 
@@ -608,6 +618,10 @@ function createTaskElement(task) {
     li.dataset.taskId = task.id;
     li.dataset.priority = task.priority || "Medium";
     li.dataset.position = task.position || 0;
+
+        if (task.is_done) {
+        li.classList.add("finished");
+    }
 
     // Apply date-related classes (now considering full date-time)
     const taskDueDateTime = task.due_date ? new Date(task.due_date) : null;
@@ -792,9 +806,7 @@ function createTaskElement(task) {
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = ""; // Text removed, using SVG
     deleteBtn.classList.add("delete-button");
-    deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
-      <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.278a.75.75 0 1 0 .14 1.494l.147-.017c.73-.086 1.46-.174 2.18-.26V15a2.75 2.75 0 0 0 2.75 2.75h2.5A2.75 2.75 0 0 0 14 15V4.458c.72.086 1.45.174 2.18.26l.147.017a.75.75 0 1 0 .14-1.494l-2.365-.278V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.828 0 1.5.672 1.5 1.5v7.75a.75.75 0 0 1-1.5 0V5.5c0-.828.672-1.5 1.5-1.5Zm-3.5 1.5c0-.828.672-1.5 1.5-1.5h1.5c.828 0 1.5.672 1.5 1.5v7.75a.75.75 0 0 1-1.5 0V5.5c0-.828-.672-1.5-1.5-1.5h-1.5Zm6.5-1.5h-1.5c-.828 0-1.5.672-1.5 1.5v7.75a.75.75 0 0 1-1.5 0V5.5c0-.828.672-1.5 1.5-1.5h1.5c.828 0 1.5.672 1.5 1.5v7.75a.75.75 0 0 1-1.5 0V5.5c0-.828-.672-1.5-1.5-1.5Z" clip-rule="evenodd" />
-    </svg>`; // SVG for delete icon
+    deleteBtn.innerHTML = `X`; // SVG for delete icon
     deleteBtn.addEventListener("click", async () => {
       showCustomConfirm("Are you sure you want to delete this task?", async () => {
           const taskId = li.dataset.taskId;
