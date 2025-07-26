@@ -781,13 +781,7 @@ function createTaskElement(task) {
     dueTimeInput.type = "time";
     dueTimeInput.classList.add("time-input"); // Add a class for styling
     // Extract time part if task.due_date is a full ISO string
-    // Use toLocaleTimeString to get the local time in HH:MM format
-    if (task.due_date) {
-        const dateObj = new Date(task.due_date);
-        if (!isNaN(dateObj.getTime())) {
-            dueTimeInput.value = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-        }
-    }
+    dueTimeInput.value = task.due_date ? task.due_date.substring(11, 16) : '';
     dueTimeInput.style.display = 'none';
 
     // Notification Time Display
@@ -858,19 +852,9 @@ function createTaskElement(task) {
 
         if (datePart) {
             if (timePart) {
-                // Combine date and time, then convert to ISO string (UTC)
-                // This ensures consistency when saving to Supabase
-                const combinedDateTime = new Date(`${datePart}T${timePart}:00`);
-                if (!isNaN(combinedDateTime.getTime())) {
-                    newDueDateTime = combinedDateTime.toISOString();
-                }
+                newDueDateTime = `${datePart}T${timePart}:00`; // YYYY-MM-DDTHH:MM:00
             } else {
-                // If only date is provided, default time to midnight local time
-                const dateOnly = new Date(datePart);
-                if (!isNaN(dateOnly.getTime())) {
-                    dateOnly.setHours(0, 0, 0, 0); // Set to local midnight
-                    newDueDateTime = dateOnly.toISOString();
-                }
+                newDueDateTime = `${datePart}T00:00:00`; // Default to start of day if no time
             }
         }
         
@@ -1342,18 +1326,9 @@ async function addTaskFromInput() {
     const timePart = dueTimeInput.value;
     if (datePart) {
         if (timePart) {
-            // Combine date and time, then convert to ISO string (UTC)
-            const combinedDateTime = new Date(`${datePart}T${timePart}:00`);
-            if (!isNaN(combinedDateTime.getTime())) {
-                dueDateTime = combinedDateTime.toISOString();
-            }
+            dueDateTime = `${datePart}T${timePart}:00`; // YYYY-MM-DDTHH:MM:00
         } else {
-            // If only date is provided, default time to midnight local time
-            const dateOnly = new Date(datePart);
-            if (!isNaN(dateOnly.getTime())) {
-                dateOnly.setHours(0, 0, 0, 0); // Set to local midnight
-                dueDateTime = dateOnly.toISOString();
-            }
+            dueDateTime = `${datePart}T00:00:00`; // Default to start of day
         }
     }
 
@@ -1557,7 +1532,7 @@ function init() {
   const taskList = document.getElementById("taskList");
 
   document.getElementById('resetCountBtn')?.addEventListener('click', async () => {
-    showCustomConfirm("Are you sure you want to delete ALL tasks?", async () => {
+    showCustomConfirm("Are you sure you want to delete ALL tasks? This cannot be undone.", async () => {
         if (currentUser) {
             const { error } = await supabase.from('tasks').delete().eq('user_id', currentUser.id);
             if (error) console.error("Error resetting all tasks for user:", error.message);
