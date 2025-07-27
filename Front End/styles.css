@@ -162,7 +162,7 @@ hr.custom-hr {
 .user-email {
   font-weight: bold;
   color: var(--fg);
-  font-size: 1em;
+  font-size: 14px;
 }
 
 #toggleNotes.notes-toggle,
