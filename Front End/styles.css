@@ -113,6 +113,7 @@ hr.custom-hr {
   display: flex;
   align-items: center;
   gap: 20px;
+  flex-wrap: wrap; /* Allow navigation items to wrap */
 }
 
 .nav-title {
@@ -165,8 +166,8 @@ hr.custom-hr {
   display: block;
   border-radius: 5px;
   background-color: var(--button-bg);
-      color: var(--button-fg);
-      padding: 8px 12px;
+  color: var(--button-fg);
+  padding: 8px 12px;
 }
 
 #toggleNotes.notes-toggle,
@@ -314,37 +315,37 @@ input[type=number]::-webkit-outer-spin-button {
 
 /* Date input specific styling */
 input[type="date"].date-input {
-    width: auto; /* Adjust width as needed */
-    min-width: 280px; /* Minimum width for date input */
-    padding: 10px 14px;
-    font-size: 14px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background-color: var(--select-bg);
-    color: var(--fg);
-    text-align: left; /* Align text to left for date */
+  width: auto; /* Adjust width as needed */
+  min-width: 280px; /* Minimum width for date input */
+  padding: 10px 14px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background-color: var(--select-bg);
+  color: var(--fg);
+  text-align: left; /* Align text to left for date */
 }
 body[data-theme="dark"] input[type="date"].date-input {
-    color-scheme: dark; /* Ensures date picker calendar is dark */
-      background-color: var(--select-bg);
+  color-scheme: dark; /* Ensures date picker calendar is dark */
+  background-color: var(--select-bg);
 }
 
 /* NEW: Time input specific styling */
 input[type="time"].time-input {
-    width: auto; /* Adjust width as needed */
-    min-width: 280px; /* Minimum width for time input */
-    padding: 8px 12px;
-    font-size: 14px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background-color: var(--select-bg);
-    color: var(--fg);
-    text-align: left;
+  width: auto; /* Adjust width as needed */
+  min-width: 280px; /* Minimum width for time input */
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background-color: var(--select-bg);
+  color: var(--fg);
+  text-align: left;
 
 }
 body[data-theme="dark"] input[type="time"].time-input {
-    color-scheme: dark; /* Ensures time picker is dark */
-      background-color: var(--select-bg);
+  color-scheme: dark; /* Ensures time picker is dark */
+  background-color: var(--select-bg);
 }
 
 
@@ -371,7 +372,7 @@ body[data-theme="dark"] input[type="time"].time-input {
 }
 
 body[data-theme="dark"] .select-box {
-    background-image: url("data:image/svg+xml;utf8,<svg fill='%23e0e0e0' height='' viewBox='0 0 24 24' width='10' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg fill='%23e0e0e0' height='' viewBox='0 0 24 24' width='10' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
 }
 
 
@@ -390,60 +391,61 @@ body[data-theme="dark"] .select-box {
 /* --- Task Management Sections --- */
 /* NEW: Task Add Section for improved UX */
 .task-add-section {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    box-sizing: border-box;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .task-input-group {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
-    margin-top: 14px;
-    align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  margin-top: 14px;
+  align-items: center;
+  flex-wrap: wrap; /* Allow input group items to wrap */
 }
 
 .task-input-group .input {
-    flex-grow: 1;
-    padding: 12px 15px; /* Slightly larger padding for main task input */
-    font-size: 16px;
-    width: auto; /* Override default input width */
-    text-align: left; /* Align text to left */
+  flex-grow: 1;
+  padding: 12px 15px; /* Slightly larger padding for main task input */
+  font-size: 16px;
+  width: auto; /* Override default input width */
+  text-align: left; /* Align text to left */
 }
 
 .task-details-row {
-    display: flex;
-    flex-wrap: wrap; /* Allows items to wrap on smaller screens */
-    gap: 15px; /* Space between input fields */
-    margin-left: 5px;
-    justify-content: center;
-    align-items: center;
+  display: flex;
+  flex-wrap: wrap; /* Allows items to wrap on smaller screens */
+  gap: 15px; /* Space between input fields */
+  margin-left: 5px;
+  justify-content: center;
+  align-items: center;
 }
 
 .input-field {
-    display: flex;
-    flex-direction: column;
-    min-width: 80px; /* Ensures fields don't get too small */
+  display: flex;
+  flex-direction: column;
+  min-width: 80px; /* Ensures fields don't get too small */
 }
 
 .input-field label {
-    font-size: 0.9em;
-    color: var(--fg);
-    margin-bottom: 8px;
-    margin-left: 10px;
-    font-weight: bold;
+  font-size: 0.9em;
+  color: var(--fg);
+  margin-bottom: 8px;
+  margin-left: 10px;
+  font-weight: bold;
 }
 
 .input-field .select-box,
 .input-field .date-input,
 .input-field .time-input {
-    width: 100%; /* Make them fill their container */
-    box-sizing: border-box;
+  width: 100%; /* Make them fill their container */
+  box-sizing: border-box;
 }
 .modal-content .input-field input,
 .modal-content .input-field select {
@@ -453,14 +455,14 @@ body[data-theme="dark"] .select-box {
 }
 /* END NEW: Task Add Section */
 .timer-add-section {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    box-sizing: border-box;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 #taskList {
@@ -500,23 +502,23 @@ body[data-theme="dark"] .select-box {
 
 /* NEW: Due Date Status Colors for the entire task item (li) */
 #taskList li.overdue-task {
-    border-left: 5px solid #dc3545; /* Red border for overdue */
-    background-color: var(--overdue-task-bg);
+  border-left: 5px solid #dc3545; /* Red border for overdue */
+  background-color: var(--overdue-task-bg);
 }
 
 #taskList li.today-task {
-    border-left: 5px solid #ffc107; /* Yellow/Orange border for today */
-    background-color: var(--today-task-bg);
+  border-left: 5px solid #ffc107; /* Yellow/Orange border for today */
+  background-color: var(--today-task-bg);
 }
 
 #taskList li.future-task {
-    /* Optional: A subtle blue border for future tasks */
-    border-left: 5px solid #007bff;
+  /* Optional: A subtle blue border for future tasks */
+  border-left: 5px solid #007bff;
 }
 
 #taskList li.no-due-date {
-    /* No special border or color for tasks without a due date */
-    border-left: 5px solid transparent; /* To keep alignment consistent */
+  /* No special border or color for tasks without a due date */
+  border-left: 5px solid transparent; /* To keep alignment consistent */
 }
 
 
@@ -607,8 +609,8 @@ body[data-theme="dark"] #taskList li:not(.finished):hover {
 }
 
 body[data-theme="dark"] .task-text code {
-    background-color: #333;
-    color: #eee;
+  background-color: #333;
+  color: #eee;
 }
 
 /* Task Buttons */
@@ -695,8 +697,8 @@ body[data-theme="dark"] .task-text code {
   width: max-content; /* Allow content to define width */
   box-sizing: border-box; /* Include padding/border in width */
 }
-.due-date-display{
-    display: inline-block;
+.due-date-display {
+  display: inline-block;
   background-color: var(--select-bg);
   color: var(--fg);
   padding: 5px 10px; /* Reduced padding */
@@ -709,8 +711,8 @@ body[data-theme="dark"] .task-text code {
   width: max-content; /* Allow content to define width */
   box-sizing: border-box; /* Include padding/border in width */
 }
-.notification-time-display{
-      display: inline-block;
+.notification-time-display {
+  display: inline-block;
   background-color: var(--select-bg);
   color: var(--fg);
   padding: 5px 10px; /* Reduced padding */
@@ -723,7 +725,7 @@ body[data-theme="dark"] .task-text code {
   box-sizing: border-box; /* Include padding/border in width */
 }
 .priority-label {
-    display: inline-block;
+  display: inline-block;
   background-color: var(--select-bg);
   color: var(--fg);
   padding: 5px 10px; /* Reduced padding */
@@ -737,13 +739,13 @@ body[data-theme="dark"] .task-text code {
 }
 /* Specific text colors for the display if needed */
 #taskList li.overdue-task .due-date-display {
-    color: #dc3545; /* Red text for overdue */
-    font-weight: bold;
+  color: #dc3545; /* Red text for overdue */
+  font-weight: bold;
 }
 
 #taskList li.today-task .due-date-display {
-   color: #ffc107;
-    font-weight: bold;
+  color: #ffc107;
+  font-weight: bold;
 }
 
 
@@ -792,7 +794,7 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
   min-width: 20px;
 }
 body[data-theme="dark"] .task-counter-content .count {
-    color: #e0e0e0;
+  color: #e0e0e0;
 }
 
 .task-counter-content .label {
@@ -834,19 +836,19 @@ body[data-theme="dark"] .task-counter-content .count {
   border-left: 5px solid rgba(51, 51, 51, 0.3);
 }
 body[data-theme="dark"] .task-counter-line {
-    box-shadow: 0 2px 6px rgba(102, 100, 100, 0.1);
-    background-color: #1e1e1e;
-    border: none;
-    transition: background-color 0.3s ease, border 0.3s ease;
-    border-left: 5px solid rgba(201, 201, 201, 0.579);
+  box-shadow: 0 2px 6px rgba(102, 100, 100, 0.1);
+  background-color: #1e1e1e;
+  border: none;
+  transition: background-color 0.3s ease, border 0.3s ease;
+  border-left: 5px solid rgba(201, 201, 201, 0.579);
 }
 .task-counter-line:hover {
   border-color: var(--select-bg);
   cursor: default;
 }
 body[data-theme="dark"] .task-counter-line:hover {
-    box-shadow: 0 2px 6px rgba(186, 186, 186, 0.1);
-    border-left: 5px solid rgba(141, 141, 141, 0.196);
+  box-shadow: 0 2px 6px rgba(186, 186, 186, 0.1);
+  border-left: 5px solid rgba(141, 141, 141, 0.196);
 }
 
 
@@ -962,130 +964,130 @@ body[data-theme="dark"] .close-button:hover {
 
 /* --- Custom Modal Styles (for alerts, confirms, prompts) --- */
 .custom-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000; /* Ensure it's above everything */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000; /* Ensure it's above everything */
 }
 
 .custom-modal-content {
-    background-color: var(--card-bg);
-    padding: 25px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    text-align: center;
-    max-width: 400px;
-    width: 90%;
-    color: var(--fg);
+  background-color: var(--card-bg);
+  padding: 25px;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  color: var(--fg);
 }
 
 .custom-modal-content p {
-    margin-bottom: 20px;
-    font-size: 1.1em;
-    line-height: 1.4;
+  margin-bottom: 20px;
+  font-size: 1.1em;
+  line-height: 1.4;
 }
 
 .custom-modal-input {
-    width: calc(100% - 20px);
-    padding: 10px;
-    margin-bottom: 20px;
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    font-size: 1em;
-    background-color: var(--input-bg);
-    color: var(--fg);
+  width: calc(100% - 20px);
+  padding: 10px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 1em;
+  background-color: var(--input-bg);
+  color: var(--fg);
 }
 
 .custom-modal-actions {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
 }
 
 .custom-modal-button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.2s ease;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background-color 0.2s ease;
 }
 
 .custom-modal-button:not(.confirm-button):not(.cancel-button) { /* For 'OK' button */
-    background-color: var(--button-bg);
-    color: var(--button-fg);
+  background-color: var(--button-bg);
+  color: var(--button-fg);
 }
 
 .custom-modal-button:not(.confirm-button):not(.cancel-button):hover {
-    background-color: var(--highlight-color);
+  background-color: var(--highlight-color);
 }
 
 .custom-modal-button.confirm-button {
-    background-color: #28a745; /* Green for Yes/Confirm */
-    color: white;
+  background-color: #28a745; /* Green for Yes/Confirm */
+  color: white;
 }
 
 .custom-modal-button.confirm-button:hover {
-    background-color: #218838;
+  background-color: #218838;
 }
 
 .custom-modal-button.cancel-button {
-    background-color: #dc3545; /* Red for No/Cancel */
-    color: white;
+  background-color: #dc3545; /* Red for No/Cancel */
+  color: white;
 }
 
 .custom-modal-button.cancel-button:hover {
-    background-color: #c82333;
+  background-color: #c82333;
 }
 
 
 /* --- Task Edit Modal Styles (NEW) --- */
 .modal {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 200; /* Sit on top, above other modals if any */
-    left: 0;
-    top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
-    justify-content: center;
-    align-items: center;
-    padding-top: 50px; /* To push content down slightly from top */
-    box-sizing: border-box;
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 200; /* Sit on top, above other modals if any */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
+  justify-content: center;
+  align-items: center;
+  padding-top: 50px; /* To push content down slightly from top */
+  box-sizing: border-box;
 }
 
 .modal-content {
-    background-color: var(--card-bg);
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    position: relative;
-    width: 90%;
-    max-width: 688px; /* Max width for larger screens */
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+  background-color: var(--card-bg);
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  position: relative;
+  width: 90%;
+  max-width: 688px; /* Max width for larger screens */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .modal-content h2 {
-    text-align: center;
-    color: var(--title-color);
-    margin-top: 0;
-    margin-bottom: 20px;
+  text-align: center;
+  color: var(--title-color);
+  margin-top: 0;
+  margin-bottom: 20px;
 }
 
 .modal-content .input-field label {
-    font-size: 1em;
-    margin-bottom: 8px;
+  font-size: 1em;
+  margin-bottom: 8px;
 }
 .modal-content .date-input[type="date"],
 .modal-content .time-input[type="time"] {
@@ -1096,47 +1098,47 @@ body[data-theme="dark"] .close-button:hover {
 .modal-content .select-box,
 .modal-content .date-input,
 .modal-content .time-input {
-    width: 100%;
-    padding: 12px;
-    font-size: 1em;
+  width: 100%;
+  padding: 12px;
+  font-size: 1em;
 }
 
 .modal .close-button { /* Specific close button for this modal */
-    font-size: 28px;
-    font-weight: bold;
-    position: absolute;
-    top: 28px;
-    right: 6px;
-    cursor: pointer;
-    transition: color 0.2s ease;
-    border: none;
+  font-size: 28px;
+  font-weight: bold;
+  position: absolute;
+  top: 28px;
+  right: 6px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  border: none;
 }
 
 .modal .close-button:hover,
 .modal .close-button:focus {
-    color: var(--highlight-color);
-    text-decoration: none;
-    cursor: pointer;
+  color: var(--highlight-color);
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .modal-buttons {
-    display: flex;
-    justify-content: space-evenly;
-    gap: 10px;
-    margin-top: 20px;
+  display: flex;
+  justify-content: space-evenly;
+  gap: 10px;
+  margin-top: 20px;
 }
 
 .modal-buttons .button {
-    flex-grow: 1; /* Allow buttons to expand */
-    padding: 12px 25px; /* Adjust padding */
+  flex-grow: 1; /* Allow buttons to expand */
+  padding: 12px 25px; /* Adjust padding */
 }
 
 .button-secondary {
-    background-color: #6c757d; /* A different color for secondary action */
+  background-color: #6c757d; /* A different color for secondary action */
 }
 
 .button-secondary:hover {
-    background-color: #5a6268;
+  background-color: #5a6268;
 }
 #editNotificationOffset {
   min-width: 95px;
@@ -1148,234 +1150,27 @@ body[data-theme="dark"] .close-button:hover {
   justify-self: center;
   background-color: var(--select-bg);
 }
-
-
-/* --- Media Queries for Responsiveness --- */
-
-/* Tablet and larger phones (up to 768px) */
-@media (max-width: 768px) {
-  #main-navbar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px;
-  }
-  .nav-right {
-    width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-  }
-  #auth-nav-items,
-  #user-nav-items {
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 5px;
-  }
-  #auth-nav-items input,
-  .nav-button {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  /* Task Add Section adjustments */
-  .task-add-section {
-    padding: 15px;
-  }
-  .task-input-group {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .task-details-row {
-    flex-direction: column;
-    gap: 10px;
-  }
-  .input-field {
-    min-width: unset; /* Remove min-width to allow shrinking */
-  }
-
-  .select-box,
-  input[type="date"].date-input, /* Apply to date input as well */
-  input[type="time"].time-input { /* NEW: Apply to time input */
-    min-width: 100%; /* Ensure select boxes take full width */
-  }
-
-  .task-counter-line {
-    min-width: 100%; /* Ensure counter line takes full width */
-    justify-content: center; /* Center content in the counter */
-    flex-wrap: wrap; /* Allow content to wrap if needed */
-    text-align: center;
-  }
-
-  .counter-text {
-    align-items: center; /* Center text within the counter */
-    padding-left: 0;
-  }
-
-  .task-actions {
-    width: 100%;
-    justify-content: center; /* Center action buttons */
-  }
-
-  #mainContent {
-    width: 95%; /* Increase width for more space on smaller tablets */
-    padding-top: 10px; /* Reduce top padding if desired */
-  }
-
-  .notes-sidebar {
-    width: 50vw; /* Adjust sidebar width for tablets */
-  }
-
-  body.notes-open #mainContent {
-    transform: translateX(-50vw); /* Adjust transform for tablets */
-  }
-
-  /* Modal responsiveness */
-  .modal-content {
-      padding: 20px;
-      width: 95%;
-  }
-  .modal-buttons {
-      flex-direction: column; /* Stack buttons vertically on small screens */
-  }
-}
-
-/* Smaller mobile devices (up to 480px) */
-@media (max-width: 480px) {
-  body {
-    padding: 10px; /* Reduce overall body padding */
-  }
-
-  h1 {
-    font-size: 2rem; /* Smaller heading for very small screens */
-  }
-
-  #main-navbar {
-    padding: 8px; /* Slightly less padding for navbar */
-  }
-
-  .nav-title {
-    font-size: 1.5rem; /* Smaller title */
-  }
-
-  #auth-nav-items input,
-  .nav-button {
-    font-size: 0.8em; /* Smaller font for nav buttons/inputs */
-    padding: 6px 10px;
-  }
-
-  .notes-sidebar {
-    width: 90%; /* Make sidebar wider on small screens */
-    height: 100%; /* Full height */
-    border-radius: 0; /* Remove border-radius on small screens */
-  }
-
-  #notesSidebar textarea#notes {
-    height: calc(100% - 120px); /* Adjust height for smaller screen */
-  }
-
-  #timer {
-    font-size: 36px; /* Smaller timer font */
-  }
-
-  .timer-controls .input {
-    width: 60px; /* Smaller width for timer input */
-    padding: 8px 10px;
-  }
-
-  .task-add-section .input { /* Ensure main task input is full width */
-    width: 100%;
-  }
-
-  #taskList {
-    padding: 0 5px; /* Reduce task list padding */
-  }
-
-  #taskList li {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 10px; /* Adjust padding for list items */
-    gap: 10px;
-    font-size: 15px; /* Slightly smaller font for task text */
-  }
-
-  .task-text {
-    width: 100%;
-    font-size: 15px;
-  }
-
-  .task-timer {
-    font-size: 12px;
-    padding: 5px 10px;
-    width: 100%; /* Full width for task timer */
-    box-sizing: border-box;
-  }
-
-  .category-label,
-  .priority-label,
-  .due-date-display, /* Added due-date-display */
-  .notification-time-display { /* Added notification-time-display */
-    width: 100%; /* Full width for labels */
-    text-align: center;
-    font-size: 14px;
-    padding: 6px 0; /* Adjust vertical padding */
-  }
-
-  .edit-button {
-    width: auto; /* Let content define width for edit button */
-    font-size: 15px;
-    padding: 5px;
-  }
-
-  #taskList li:not(.finished):hover {
-    transform: none;
-    box-shadow: none;
-  }
-
-  .task-control-row {
-    gap: 10px; /* Reduce gap further */
-  }
-
-  .task-counter-line {
-    padding: 8px 12px; /* Smaller padding for counter line */
-    gap: 10px;
-  }
-
-  .task-counter-content .count {
-    font-size: 24px; /* Smaller count font */
-  }
-
-  .task-counter-content .label {
-    font-size: 14px; /* Smaller label font */
-  }
-
-  .reset-button {
-    padding: 8px 14px; /* Adjust reset button padding */
-    font-size: 14px;
-  }
-}
 .grid-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* Creates two columns of equal width */
-    gap: 10px; /* Adjust the space between columns as needed */
-    align-items: stretch; /* Align items to the start of their grid area */
-    margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+  overflow-x: auto;
 }
-
 .grid-item {
-    padding: 15px;
-    border: 1px solid #ccc; /* Optional: for visual separation */
-    border-radius: 10px;
-    background-color: #f9f9f9; /* Optional: for visual distinction */
+  padding: 15px;
+  border: 1px solid #ccc; /* Optional: for visual separation */
+  border-radius: 10px;
+  background-color: #f9f9f9; /* Optional: for visual distinction */
 }
 body[data-theme="dark"] .grid-item {
   background-color: #1e1e1e;
   border: none;
 }
 body[data-theme="dark"] .grid-item:hover {
-    background-color: #1e1e1e;
-    border: none;
-    transition: background-color 0.3s ease, border 0.3s ease;
+  background-color: #1e1e1e;
+  border: none;
+  transition: background-color 0.3s ease, border 0.3s ease;
 }
 .circle-icon {
   background-color: #007bff;
@@ -1391,4 +1186,332 @@ body[data-theme="dark"] .grid-item:hover {
 }
 body[data-theme="dark"] .circle-icon {
   background-color: var(--select-bg);
+}
+
+/* --- Media Queries for Responsiveness --- */
+
+/* Tablets and smaller (max-width: 768px) */
+@media (max-width: 768px) {
+  body {
+    padding: 0 15px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  #main-navbar {
+    flex-direction: column; /* Stack navbar items vertically */
+    align-items: flex-start;
+    padding: 10px 15px;
+    gap: 10px;
+  }
+
+  .nav-left,
+  .nav-right {
+    justify-content: center;
+    gap: 10px;
+    position: static;
+  }
+
+  .nav-title {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+
+  #auth-nav-items,
+  #user-nav-items {
+    gap: 8px;
+  }
+
+  #auth-nav-items input {
+
+  }
+
+  .nav-button, .user-email {
+    text-align: center;
+  }
+
+  #timer {
+    font-size: 40px;
+  }
+
+  #timerBarContainer {
+    width: 70%; /* Increase timer bar width on smaller screens */
+  }
+
+  .timer-controls {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .timer-controls .input {
+    width: 60px;
+  }
+
+  .task-add-section {
+    padding: 15px;
+  }
+
+  .task-input-group {
+    flex-direction: column; /* Stack task input group vertically */
+    align-items: stretch;
+  }
+
+  .task-input-group .input {
+    width: 100%;
+  }
+
+  .task-details-row {
+    flex-direction: column; /* Stack task details vertically */
+    gap: 10px;
+    margin-left: 0;
+  }
+
+  .input-field {
+    width: 100%; /* Ensure input fields take full width */
+    min-width: unset;
+  }
+
+  .select-box,
+  .date-input,
+  .time-input {
+    min-width: 100%; /* Make select boxes and date/time inputs full width */
+  }
+
+  #taskList li {
+    flex-direction: column; /* Stack task list items vertically */
+    align-items: flex-start;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .task-text {
+    width: 100%;
+    text-align: left;
+  }
+
+  .category-label,
+  .due-date-display,
+  .notification-time-display,
+  .priority-label {
+    width: 100%;
+    min-width: unset;
+    text-align: center;
+  }
+
+  .task-actions {
+    width: 100%;
+    justify-content: center;
+    margin-top: 10px;
+  }
+
+  .task-counter-line {
+    min-width: unset;
+    width: 94%;
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+
+  .task-counter-content {
+    min-width: unset;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .notes-sidebar {
+    width: 60vw; /* Take up more space on tablets */
+  }
+
+  body.notes-open #mainContent {
+    transform: translateX(-15vw); /* Adjust main content transform */
+  }
+
+  .custom-modal-content {
+    width: 95%;
+  }
+
+  .modal-content {
+    width: 95%;
+    padding: 20px;
+  }
+
+  .grid-container {
+    grid-template-columns: 1fr; /* Stack grid items on smaller screens */
+  }
+}
+
+/* Mobile phones (max-width: 480px) */
+@media (max-width: 480px) {
+  body {
+    padding: 0 10px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  #main-navbar {
+flex-direction: column;
+        align-items: flex-start;
+        padding: 10px 15px;
+        gap: 10px;
+        display: flex
+;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        text-align: center;
+}
+  .nav-title {
+    font-size: 1.3rem;
+  }
+
+  #auth-nav-items input,
+  .nav-button,
+  .user-email {
+    font-size: 0.8em;
+    padding: 6px 20px;
+    max-width: 100%;
+  }
+
+  #toggleNotes.notes-toggle,
+  #themeToggle.theme-toggle {
+    font-size: 1.2rem;
+  }
+
+  #toggleNotes.notes-toggle svg,
+  #themeToggle.theme-toggle svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  #timer {
+    font-size: 32px;
+  }
+
+  #timerBarContainer {
+    width: 85%;
+  }
+
+  .timer-controls {
+    gap: 8px;
+  }
+
+  .timer-controls .input {
+    width: 50px;
+    font-size: 0.9rem;
+  }
+
+  .input,
+  .button {
+    font-size: 14px;
+    padding: 8px 15px;
+  }
+
+  .task-add-section {
+    padding: 10px;
+  }
+
+  .task-input-group .input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .input-field label {
+    font-size: 0.8em;
+    margin-bottom: 5px;
+  }
+
+  .select-box,
+  .date-input,
+  .time-input {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  #taskList li {
+    padding: 8px;
+    gap: 5px;
+  }
+
+  .task-text {
+    font-size: 13px;
+  }
+
+  .category-label,
+  .due-date-display,
+  .notification-time-display,
+  .priority-label {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .delete-button,
+  .edit-button {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+
+  .edit-button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .task-counter-line {
+    padding: 10px 12px;
+  }
+
+  .task-counter-content .count {
+    font-size: 16px;
+  }
+
+  .task-counter-content .label {
+    font-size: 14px;
+  }
+
+  .notes-sidebar {
+    width: 80vw; /* Take up more space on mobile */
+  }
+
+  body.notes-open #mainContent {
+    transform: translateX(-20vw); /* Adjust transform for main content */
+  }
+
+  .custom-modal-content {
+    padding: 15px;
+  }
+
+  .custom-modal-content p {
+    font-size: 1em;
+  }
+
+  .custom-modal-button {
+    padding: 8px 15px;
+    font-size: 0.9em;
+  }
+
+  .modal-content {
+    padding: 15px;
+    gap: 10px;
+  }
+
+  .modal-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .modal-content .input,
+  .modal-content .select-box,
+  .modal-content .date-input,
+  .modal-content .time-input {
+    padding: 10px;
+    font-size: 0.9em;
+  }
+
+  .modal-buttons .button {
+    padding: 10px 20px;
+  }
 }
