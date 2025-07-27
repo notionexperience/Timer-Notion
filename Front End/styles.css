@@ -867,14 +867,22 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 
 .close-button {
   background: none;
-  border: none;
-  font-size: 20px;
+  font-size: 16px;
   cursor: pointer;
   padding: 0;
   color: #888;
   transition: color 0.2s ease;
+  width: 32px;
+  height: 32px;
   margin-right: 1.5rem;
+  border: 2px solid #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1e1e1e;
 }
+
 
 .close-button:hover,
 .close-button:focus {

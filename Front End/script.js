@@ -538,9 +538,11 @@ function getTodayDateString() {
 }
 
 // Function to schedule a single task notification
+// Inside script.js
+
 function scheduleTaskNotification(task) {
     // Only schedule if user is logged in, task has a due date, and is not done.
-    if (!currentUser || !task.due_date || task.is_done) {
+    if (!task.due_date || task.is_done) {
         clearScheduledNotification(task.id);
         return;
     }
@@ -568,10 +570,19 @@ function scheduleTaskNotification(task) {
         console.log(`Scheduling in-app notification for task "${task.content}" in ${timeUntilNotification / 1000 / 60} minutes.`);
         const timeoutId = setTimeout(() => {
             const formattedDueTime = new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const notificationMessage = `Task due soon: ${task.content} at ${formattedDueTime}`;
+            const notificationMessage = `Task: ${task.content} at ${formattedDueTime}`;
 
             // Only show in-app custom alert
-            showCustomAlert(`Reminder: ${notificationMessage}`);
+            showCustomAlert(`🔔 ${notificationMessage}`);
+
+            // Play a notification sound
+            try {
+                // Ensure you have a sound file at this path, e.g., assets/notification.mp3
+                const notificationSound = new Audio('/Sounds/notification-sound-effect-372475.mp3');
+                notificationSound.play().catch(e => console.error("Error playing notification sound:", e));
+            } catch (e) {
+                console.error("Could not create Audio object for notification sound:", e);
+            }
             
             delete notificationTimers[task.id];
         }, timeUntilNotification);
@@ -882,6 +893,10 @@ async function addTaskFromInput() {
     const dueTimeInput = document.getElementById("dueTime"); // Updated ID
     const taskList = document.getElementById("taskList");
 
+const newNotificationOffset = document.getElementById('newNotificationOffset');
+// For the Edit Task Modal (you likely already have this, but confirm its ID)
+const editNotificationOffset = document.getElementById('editNotificationOffset');
+
     const taskText = taskInput.value.trim();
     if (!taskText) {
         showCustomAlert("Please enter a task description.");
@@ -1052,22 +1067,27 @@ function showEditModal(task) {
     editPrioritySelect.value = task.priority || "Medium";
 
     // Format due_date for input[type="date"] and due_time for input[type="time"]
-    if (task.due_date) {
-        const dueDateObj = new Date(task.due_date);
-        if (!isNaN(dueDateObj.getTime())) {
-            editDueDate.value = dueDateObj.toISOString().split('T')[0]; // YYYY-MM-DD
-            // Get local hours and minutes for the time input
-            const localHours = String(dueDateObj.getHours()).padStart(2, '0');
-            const localMinutes = String(dueDateObj.getMinutes()).padStart(2, '0');
-            editDueTime.value = `${localHours}:${localMinutes}`; // HH:MM
-        } else {
-            editDueDate.value = '';
-            editDueTime.value = '';
-        }
+ if (task.due_date) {
+    const dueDateObj = new Date(task.due_date); // This correctly parses the UTC ISO string
+    if (!isNaN(dueDateObj.getTime())) {
+        // Correctly get local date components for the date input
+        const year = dueDateObj.getFullYear();
+        const month = String(dueDateObj.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed, so add 1
+        const day = String(dueDateObj.getDate()).padStart(2, '0');
+        editDueDate.value = `${year}-${month}-${day}`; // Format as YYYY-MM-DD (local date)
+
+        // Get local hours and minutes for the time input (this part was already correct)
+        const localHours = String(dueDateObj.getHours()).padStart(2, '0');
+        const localMinutes = String(dueDateObj.getMinutes()).padStart(2, '0');
+        editDueTime.value = `${localHours}:${localMinutes}`; // Format as HH:MM
     } else {
         editDueDate.value = '';
         editDueTime.value = '';
     }
+} else {
+    editDueDate.value = '';
+    editDueTime.value = '';
+}
 
     // Set notification offset
     editNotificationOffset.value = task.notification_time !== null ? task.notification_time : '';
