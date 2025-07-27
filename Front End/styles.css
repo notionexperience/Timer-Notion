@@ -105,13 +105,14 @@ hr.custom-hr {
   z-index: 100;
   box-sizing: border-box;
   flex-wrap: wrap;
+  border-radius: 10px;
 }
 
 .nav-left,
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 20px;
 }
 
 .nav-title {
@@ -170,7 +171,7 @@ hr.custom-hr {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  padding: 0.4rem;
+  padding: 0.3rem;
   line-height: 1;
   border-radius: 0.5rem;
   transition: background-color 0.2s ease;
@@ -209,24 +210,13 @@ body.notes-open #mainContent {
   transform: translateX(-10vw); /* Use viewport width for more flexibility */
 }
 
-#guestModeMessage {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border);
-  padding: 10px 15px;
-  margin-top: 15px;
-  border-radius: 8px;
-  font-size: 0.9em;
-  color: var(--fg);
-  align-items: center;
-  text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
 
 /* --- Timer Styles --- */
 #timer {
   font-size: 48px;
   color: var(--fg);
   margin-bottom: 20px;
+  margin-top: 22px;
   justify-self: center;
 }
 
@@ -259,7 +249,7 @@ body.notes-open #mainContent {
   justify-content: center;
   gap: 14px;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 35px;
   margin-top: 1rem;
 }
 
@@ -274,12 +264,14 @@ body.notes-open #mainContent {
 /* --- Form Elements (Inputs, Buttons, Selects) --- */
 .input,
 .button {
-  padding: 10px 20px;
+  padding: 9px 20px;
   font-size: 16px;
   border-radius: 5px;
+
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   transition: background-color 0.3s ease;
 }
+
 
 .input {
   background-color: var(--input-bg);
@@ -287,6 +279,9 @@ body.notes-open #mainContent {
   border: 1px solid var(--border);
   width: 100px;
   text-align: center;
+  box-sizing: border-box;
+  height: 38px;
+  padding: 8px 12px;
 }
 
 .button {
@@ -316,35 +311,36 @@ input[type=number]::-webkit-outer-spin-button {
 /* Date input specific styling */
 input[type="date"].date-input {
     width: auto; /* Adjust width as needed */
-    min-width: 210px; /* Minimum width for date input */
+    min-width: 280px; /* Minimum width for date input */
     padding: 10px 14px;
     font-size: 14px;
     border-radius: 6px;
     border: 1px solid var(--border);
-    background-color: var(--input-bg);
+    background-color: var(--select-bg);
     color: var(--fg);
     text-align: left; /* Align text to left for date */
-    box-sizing: border-box;
 }
 body[data-theme="dark"] input[type="date"].date-input {
     color-scheme: dark; /* Ensures date picker calendar is dark */
+      background-color: var(--select-bg);
 }
 
 /* NEW: Time input specific styling */
 input[type="time"].time-input {
     width: auto; /* Adjust width as needed */
-    min-width: 120px; /* Minimum width for time input */
-    padding: 10px 14px;
+    min-width: 280px; /* Minimum width for time input */
+    padding: 8px 12px;
     font-size: 14px;
     border-radius: 6px;
     border: 1px solid var(--border);
-    background-color: var(--input-bg);
+    background-color: var(--select-bg);
     color: var(--fg);
     text-align: left;
-    box-sizing: border-box;
+
 }
 body[data-theme="dark"] input[type="time"].time-input {
     color-scheme: dark; /* Ensures time picker is dark */
+      background-color: var(--select-bg);
 }
 
 
@@ -355,7 +351,7 @@ body[data-theme="dark"] input[type="time"].time-input {
   flex: space-evenly;
   display: flex;
   align-items: left;
-  padding: 10px 20px;
+  padding: 10px 18px;
   font-size: 14px;
   border-radius: 5px;
   border: 1px solid var(--border);
@@ -367,7 +363,7 @@ body[data-theme="dark"] input[type="time"].time-input {
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 18px;
-  max-width: 200px;
+  min-width: 280px;
 }
 
 body[data-theme="dark"] .select-box {
@@ -403,7 +399,8 @@ body[data-theme="dark"] .select-box {
 .task-input-group {
     display: flex;
     gap: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
+    margin-top: 14px;
     align-items: center;
 }
 
@@ -419,20 +416,22 @@ body[data-theme="dark"] .select-box {
     display: flex;
     flex-wrap: wrap; /* Allows items to wrap on smaller screens */
     gap: 15px; /* Space between input fields */
-    justify-content: space-between;
+    margin-left: 20px;
+    justify-content: left;
+    align-items: center;
 }
 
 .input-field {
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
-    min-width: 150px; /* Ensures fields don't get too small */
+    min-width: 80px; /* Ensures fields don't get too small */
 }
 
 .input-field label {
     font-size: 0.9em;
     color: var(--fg);
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    margin-left: 10px;
     font-weight: bold;
 }
 
@@ -441,6 +440,12 @@ body[data-theme="dark"] .select-box {
 .input-field .time-input {
     width: 100%; /* Make them fill their container */
     box-sizing: border-box;
+}
+.modal-content .input-field input,
+.modal-content .input-field select {
+  box-sizing: border-box;
+  height: 38px;
+  padding: 8px 12px;
 }
 /* END NEW: Task Add Section */
 .timer-add-section {
@@ -460,6 +465,7 @@ body[data-theme="dark"] .select-box {
   list-style: none;
   padding: 0;
   margin: 0;
+  margin-top: 20px;
 }
 
 #taskList li {
@@ -536,6 +542,7 @@ body[data-theme="dark"] #taskList li.finished {
   flex-shrink: 1;
   min-width: 0;
   line-height: 1.5;
+  font-size: 14px;
   overflow-wrap: break-word;
   word-break: break-word;
   white-space: normal;
@@ -600,84 +607,48 @@ body[data-theme="dark"] .task-text code {
     color: #eee;
 }
 
-/* Subtask Styles */
-.subtask-list {
-  list-style: none;
-  padding-left: 1.5em;
-  margin-top: 0.5em;
-}
-
-.subtask-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  padding: 2px 0;
-}
-
-.subtask-item.finished span {
-  text-decoration: line-through;
-  opacity: 0.6;
-}
-
-.subtask-toggle,
-.subtask-add-button {
-  margin-top: 4px;
-  font-size: 12px;
-  background: transparent;
-  border: none;
-  color: #007bff;
-  cursor: pointer;
-}
-
 /* Task Buttons */
 .delete-button {
-  background: #dc3545;
+  background: var(--select-bg);
   border: none;
-  color: white;
-  padding: 4px 8px; /* Reduced padding */
-  border-radius: 3px;
+  color: var(--fg);
+  width: 28px;
+  height: 28px;
   cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border-radius: 50%;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  text-align: center;
+  box-sizing: border-box;
 }
+
 
 .delete-button:hover {
-  background: #b02a37;
-}
-
-.timer-button {
-  background: #28a745;
-  border: none;
-  color: white;
-  padding: 4px 8px; /* Reduced padding */
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.timer-button.stop {
-  background: #ffc107;
-  color: black;
-}
-
-.timer-button:disabled {
   background: #ccc;
-  cursor: default;
 }
 
 .edit-button {
-  background-color: var(--button-bg); /* Use primary button color */
+  background-color: var(--select-bg); /* Use primary button color */
   color: var(--button-fg);
   padding: 8px 12px;
-  border-radius: 5px;
+  border-radius: 50%;
   border: none;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  font-size: 0.8em; /* Smaller font for inline button */
+  font-size: 12px; /* Smaller font for inline button */
   display: flex; /* For SVG centering */
   align-items: center;
   justify-content: center;
+  user-select: none;
+  width: 28px;
+  height: 28px;
 }
 
 .edit-button:hover {
-  background-color: var(--highlight-color);
+  background-color: #ccc;
 }
 
 .edit-button svg {
@@ -693,8 +664,8 @@ body[data-theme="dark"] .task-text code {
   background-color: #535353;
   border: none;
   color: white;
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 8px 14px;
+  font-size: 14px;
   border-radius: 5px;
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -706,25 +677,60 @@ body[data-theme="dark"] .task-text code {
 
 /* --- Task Labels & Counters --- */
 
-.category-label,
-.priority-label,
-.due-date-display, /* due-date-display will now show date & time */
-.notification-time-display { /* Added notification-time-display */
+.category-label {
   display: inline-block;
   background-color: var(--select-bg);
   color: var(--fg);
   padding: 5px 10px; /* Reduced padding */
-  font-size: 11px; /* Reduced font size */
+  font-size: 12px; /* Reduced font size */
   border-radius: 12px;
   user-select: none;
   transition: background-color 0.2s ease;
   text-align: center;
-  min-width: 80px; /* Adjusted width */
-  max-width: 120px; /* Adjusted width */
+  min-width: 150px; /* Adjusted width */
   width: max-content; /* Allow content to define width */
   box-sizing: border-box; /* Include padding/border in width */
 }
-
+.due-date-display{
+    display: inline-block;
+  background-color: var(--select-bg);
+  color: var(--fg);
+  padding: 5px 10px; /* Reduced padding */
+  font-size: 12px; /* Reduced font size */
+  border-radius: 12px;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  text-align: center;
+  min-width: 140px; /* Adjusted width */
+  width: max-content; /* Allow content to define width */
+  box-sizing: border-box; /* Include padding/border in width */
+}
+.notification-time-display{
+      display: inline-block;
+  background-color: var(--select-bg);
+  color: var(--fg);
+  padding: 5px 10px; /* Reduced padding */
+  font-size: 12px; /* Reduced font size */
+  border-radius: 12px;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  text-align: center;
+  width: 75px; /* Adjusted width */
+  box-sizing: border-box; /* Include padding/border in width */
+}
+.priority-label {
+    display: inline-block;
+  background-color: var(--select-bg);
+  color: var(--fg);
+  padding: 5px 10px; /* Reduced padding */
+  font-size: 12px; /* Reduced font size */
+  border-radius: 12px;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  text-align: center;
+  width: 100px; /* Adjusted width */
+  box-sizing: border-box; /* Include padding/border in width */
+}
 /* Specific text colors for the display if needed */
 #taskList li.overdue-task .due-date-display {
     color: #dc3545; /* Red text for overdue */
@@ -732,7 +738,7 @@ body[data-theme="dark"] .task-text code {
 }
 
 #taskList li.today-task .due-date-display {
-    color: #ffc107; /* Orange/Yellow text for today */
+   color: #ffc107;
     font-weight: bold;
 }
 
@@ -776,7 +782,7 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 }
 
 .task-counter-content .count {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
   color: var(--button-bg);
   min-width: 20px;
@@ -790,12 +796,13 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 .counter-text {
   display: flex;
   flex-direction: column;
-  padding-right: 16px;
+  padding-right: 12px;
 }
 
 .task-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .task-control-row { /* This class is now mostly replaced by .task-add-section */
@@ -810,12 +817,10 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 .task-counter-line {
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 10px; /* Increased padding */
+  padding: 12px 16px; /* Increased padding */
   background-color: var(--card-bg);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  display: flex;
   align-items: center;
-  justify-content: space-evenly;
   gap: 5px;
   min-width: 250px;
   transition: background-color 0.3s ease, border-color 0.3s ease;
@@ -875,12 +880,11 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
   width: 32px;
   height: 32px;
   margin-right: 1.5rem;
-  border: 2px solid #000;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #1e1e1e;
+  border: none;
 }
 
 
@@ -1027,13 +1031,12 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 
 .modal-content {
     background-color: var(--card-bg);
-    margin: auto;
     padding: 30px;
     border-radius: 10px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     position: relative;
     width: 90%;
-    max-width: 500px; /* Max width for larger screens */
+    max-width: 688px; /* Max width for larger screens */
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -1051,6 +1054,10 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
     font-size: 1em;
     margin-bottom: 8px;
 }
+.modal-content .date-input[type="date"],
+.modal-content .time-input[type="time"] {
+  line-height: normal;
+}
 
 .modal-content .input,
 .modal-content .select-box,
@@ -1062,14 +1069,14 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 }
 
 .modal .close-button { /* Specific close button for this modal */
-    color: var(--fg);
     font-size: 28px;
     font-weight: bold;
     position: absolute;
-    top: 10px;
-    right: 15px;
+    top: 28px;
+    right: 6px;
     cursor: pointer;
     transition: color 0.2s ease;
+    border: none;
 }
 
 .modal .close-button:hover,
@@ -1081,7 +1088,7 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 
 .modal-buttons {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-evenly;
     gap: 10px;
     margin-top: 20px;
 }
@@ -1097,6 +1104,16 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
 
 .button-secondary:hover {
     background-color: #5a6268;
+}
+#editNotificationOffset {
+  min-width: 95px;
+  padding: 10px 15px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  justify-self: center;
+  background-color: var(--select-bg);
 }
 
 
@@ -1303,4 +1320,26 @@ body[data-theme="dark"] .notification-time-display:hover { /* Added notification
     padding: 8px 14px; /* Adjust reset button padding */
     font-size: 14px;
   }
+}
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Creates two columns of equal width */
+    gap: 10px; /* Adjust the space between columns as needed */
+    align-items: stretch; /* Align items to the start of their grid area */
+}
+
+.grid-item {
+    padding: 15px;
+    border: 1px solid #ccc; /* Optional: for visual separation */
+    border-radius: 10px;
+    background-color: #f9f9f9; /* Optional: for visual distinction */
+}
+body[data-theme="dark"] .grid-item {
+  background-color: #1e1e1e;
+  border: 1px solid #444;
+}
+body[data-theme="dark"] .grid-item:hover {
+    background-color: #1e1e1e;
+    border: none;
+    transition: background-color 0.3s ease, border 0.3s ease;
 }

@@ -407,7 +407,7 @@ function updateTaskCounter() {
   const counterSpan = document.querySelector("#taskCountToday .count");
 
   if (counterSpan) {
-    counterSpan.textContent = `${finishedTasks} / ${totalTasks}`;
+    counterSpan.textContent = ` Tasks: ${finishedTasks} / ${totalTasks} completed`;
   }
 }
 // Theme Toggling
@@ -570,7 +570,7 @@ function scheduleTaskNotification(task) {
         console.log(`Scheduling in-app notification for task "${task.content}" in ${timeUntilNotification / 1000 / 60} minutes.`);
         const timeoutId = setTimeout(() => {
             const formattedDueTime = new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const notificationMessage = `Task: ${task.content} at ${formattedDueTime}`;
+            const notificationMessage = `${task.content} at ${formattedDueTime} in category ${task.category}`;
 
             // Only show in-app custom alert
             showCustomAlert(`🔔 ${notificationMessage}`);
@@ -729,7 +729,7 @@ function createTaskElement(task) {
             notificationTimeDisplay.textContent = `🔔 Invalid Due Date for Notification`;
         }
     } else {
-        notificationTimeDisplay.textContent = `🔔 No notification`;
+        notificationTimeDisplay.textContent = `🔔`;
     }
     li.appendChild(notificationTimeDisplay); // Appended after dueDateDisplay
 
@@ -799,9 +799,7 @@ function createTaskElement(task) {
     editBtn.classList.add("edit-button");
     editBtn.style.cursor = "pointer";
     editBtn.title = "Edit task";
-    editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
-      <path d="m5.433 13.917 1.262-4.992a.75.75 0 0 1 .15-.276l4.636-4.635a2.125 2.125 0 0 1 3 3l-4.636 4.635a.75.75 0 0 1-.276.15l-4.992 1.262a.75.75 0 0 1-.952-.952Z" />
-    </svg>`; // SVG for edit icon
+    editBtn.innerHTML = `✏️`; // SVG for edit icon
     editBtn.setAttribute('aria-label', 'Edit task');
     editBtn.addEventListener("click", () => showEditModal(task)); // Call showEditModal
     taskActions.appendChild(editBtn);
@@ -810,7 +808,7 @@ function createTaskElement(task) {
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = ""; // Text removed, using SVG
     deleteBtn.classList.add("delete-button");
-    deleteBtn.innerHTML = `X`; // SVG for delete icon
+    deleteBtn.innerHTML = `🗑️`; // SVG for delete icon
     deleteBtn.addEventListener("click", async () => {
       showCustomConfirm("Are you sure you want to delete this task?", async () => {
           const taskId = li.dataset.taskId;
@@ -1213,11 +1211,10 @@ function init() {
   const notesSidebar = document.getElementById("notesSidebar");
   const closeNotesBtn = document.getElementById("closeNotes");
   const notesInput = document.getElementById('notes');
-  // const notesOutput = document.getElementById('sidebar-notes-output'); // Removed from HTML
 
   toggleNotesBtn?.addEventListener("click", () => {
     notesSidebar?.classList.add("open");
-    if (toggleNotesBtn) toggleNotesBtn.style.display = "none";
+    if (toggleNotesBtn) toggleNotesBtn.style.display = "active";
     document.body.classList.add("notes-open");
     loadNote(); // No need to render markdown on toggle, only on input
   });
