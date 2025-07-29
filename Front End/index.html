@@ -11,11 +11,10 @@
   <nav id="main-navbar">
     <div class="nav-left">
       <h1 class="nav-title">FocusFlow</h1>
-
     </div>
 
     <div class="nav-right"> 
-           <button id="themeToggle" class="nav-button theme-toggle" aria-pressed="false" aria-label="Toggle theme">
+      <button id="themeToggle" class="nav-button theme-toggle" aria-pressed="false" aria-label="Toggle theme">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
           <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18a.75.75 0 0 1 .75.75V21a.75.75 0 0 1-1.5 0v-2.25A.75.75 0 0 1 12 18ZM7.758 17.303a.75.75 0 0 0-1.061-1.06l-1.591 1.59a.75.75 0 0 0 1.06 1.061l1.591-1.59ZM6 12a.75.75 0 0 1-.75.75H3a.75.75 0 0 1 0-1.5h2.25A.75.75 0 0 1 6 12ZM6.697 7.757a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 0 0-1.061 1.06l1.59 1.591Z" />
         </svg>
@@ -26,7 +25,7 @@
           <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
         </svg>
       </button>
-            <span id="userEmailDisplay" class="user-email">Guest Mode</span>
+      <span id="userEmailDisplay" class="user-email">Guest Mode</span>
       <div id="auth-nav-items">
         <input type="email" id="emailInput" placeholder="Email" class="nav-input" />
         <input type="password" id="passwordInput" placeholder="Password" class="nav-input" />
@@ -37,16 +36,13 @@
 
       <div id="user-nav-items" style="display: none;">
         <button id="logoutBtn" class="nav-button">Logout</button>
-         
       </div>  
-       
     </div>
-
   </nav>
 
  <div id="mainContent">
-
-    <div class="grid-container"> <div class="timer-add-section grid-item">
+    <div class="grid-container"> 
+        <div class="timer-add-section grid-item">
             <div id="timer-section">
                 <div id="timer">0:00</div>
                 <div id="timerBarContainer">
@@ -69,8 +65,12 @@
                     placeholder="Add a new task..."
                     class="input"
                 />
+                <input type="file" id="newAttachmentInput" class="input file-input" multiple style="display: none;">
+                <button id="triggerNewAttachmentInput" class="button">🗂️</button>
                 <button id="addTaskButton" class="button">Add Task</button>
             </div>
+            <div id="newAttachmentsDisplay" class="attachments-display"></div>
+
 
             <div class="task-details-row">
                 <div class="input-field">
@@ -106,13 +106,58 @@
             </div>
         </div>
     </div> 
-            <div id="taskCountToday" class="task-counter-line">
+    
+    <!-- NEW: Filter and Sort Section -->
+    <section id="filterSortSection" class="task-add-section">
+        <div class="filter-controls">
+            <div class="input-field">
+                <label for="categoryFilter">Category:</label>
+                <select id="categoryFilter" class="select-box">
+                    <option value="all">All Categories</option>
+                    <!-- Options will be dynamically populated by script.js -->
+                </select>
+            </div>
+
+            <div class="input-field">
+                <label for="priorityFilter">Priority:</label>
+                <select id="priorityFilter" class="select-box">
+                    <option value="all">All Priorities</option>
+                    <!-- Options will be dynamically populated by script.js -->
+                </select>
+            </div>
+
+            <div class="input-field">
+                <label for="sortOrder">Sort By:</label>
+                <select id="sortOrder" class="select-box">
+                    <option value="creationDateDesc">Creation Date (Newest First)</option>
+                    <option value="dueDateAsc">Due Date (Earliest First)</option>
+                    <option value="dueDateDesc">Due Date (Latest First)</option>
+                    <option value="priorityHighToLow">Priority (High to Low)</option>
+                    <option value="priorityLowToHigh">Priority (Low to High)</option>
+                    <option value="alphabeticalAsc">Alphabetical (A-Z)</option>
+                    <option value="alphabeticalDesc">Alphabetical (Z-A)</option>
+                </select>
+            </div>
+
+
+
+            <button id="clearFiltersButton" class="button button-secondary">Clear Filters</button>            
+            <div class="input-field checkbox-field">
+                <input type="checkbox" id="showCompleted">
+                <label for="showCompleted">Show Completed Tasks</label>
+            </div>
+        </div>
+    </section>
+    <!-- END NEW: Filter and Sort Section -->
+
+    <div id="taskCountToday" class="task-counter-line">
         <div class="task-counter-content">
             <div class="counter-text">
                 <span class="count">0</span>
             </div>
 
             <div class="task-actions">
+              <input type="text" id="searchInput" placeholder="Search tasks..." class="nav-input search-input" aria-label="Search tasks">
                 <button id="clearFinishedBtn" class="reset-button">Clear Done</button>
                 <button id="resetCountBtn" class="reset-button">Reset All</button>
             </div>
@@ -181,6 +226,13 @@
               <input type="number" id="editNotificationOffset" class="input" min="0" placeholder="e.g. 15">
           </div>
       </div>
+      <!-- NEW: Attachment input for Edit Task Modal -->
+      <div class="input-field attachment-input-group">
+          <label for="editAttachmentInput">Attachments:</label>
+          <input type="file" id="editAttachmentInput" class="input file-input" multiple>
+          <div id="currentAttachmentsDisplay" class="attachments-display"></div>
+      </div>
+      <!-- END NEW: Attachment input for Edit Task Modal -->
       <div class="modal-buttons"> 
         <button id="saveEditButton" class="button">Save</button>
         <button id="cancelEditButton" class="button button-secondary">Cancel</button>

@@ -9,6 +9,12 @@ const LOCAL_STORAGE_KEY_NOTES = 'focusflow_guest_notes';
 // Key: task ID, Value: setTimeout ID
 const notificationTimers = {};
 
+// --- Global variable to store all tasks for filtering ---
+let allTasks = [];
+
+// NEW: Set to store IDs of tasks whose subtasks are currently expanded
+const expandedTaskIds = new Set();
+
 // --- Local Storage Functions for Guest Mode ---
 function getGuestTasks() {
     try {
@@ -53,6 +59,8 @@ async function migrateGuestDataToSupabase() {
             due_date: task.due_date ? new Date(task.due_date).toISOString() : null,
             position: task.position || 0,
             notification_time: task.notification_time || null,
+            subtasks: task.subtasks || [], // Include subtasks
+            attachments: task.attachments || [], // Include attachments
         }));
 
         const { error: tasksError } = await supabase.from("tasks").insert(tasksToInsert, { ignoreDuplicates: true });
@@ -177,9 +185,10 @@ async function loadTasks() {
 
     let tasks = [];
     if (currentUser) {
+        // Fetch tasks, and include subtasks and attachments using the 'jsonb' columns
         const { data: supabaseTasks, error } = await supabase
             .from("tasks")
-            .select("*")
+            .select("*, subtasks, attachments") // Select the jsonb columns
             .eq("user_id", currentUser.id)
             .order("position", { ascending: true })
             .order("created_at", { ascending: false });
@@ -195,15 +204,40 @@ async function loadTasks() {
         tasks.sort((a, b) => (a.position || 0) - (b.position || 0) || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
         console.log("Loaded tasks from Local Storage (Guest Mode):", tasks);
     }
-    renderTasks(tasks);
+    allTasks = tasks; // Store all tasks in the global variable
+    
+    // Populate filter dropdowns with unique values from allTasks
+    populateCategoryFilter(allTasks);
+    populatePriorityFilter(allTasks);
+
+    filterTasks(); // Apply filters and render tasks initially
+
     updateTaskCounter();
     if (currentUser) {
-        scheduleAllTaskNotifications(tasks);
+        scheduleAllTaskNotifications(allTasks);
     }
+
+    // NEW: Reapply expanded state after rendering
+    expandedTaskIds.forEach(taskId => {
+        const taskElement = document.querySelector(`li[data-task-id="${taskId}"]`);
+        if (taskElement) {
+            const subtasksContainer = taskElement.querySelector(".subtasks-container");
+            const toggleButton = taskElement.querySelector(".toggle-subtasks-button");
+            if (subtasksContainer && toggleButton) {
+                subtasksContainer.style.display = "block";
+                toggleButton.classList.add("expanded");
+                toggleButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+                        <path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clip-rule="evenodd" />
+                    </svg>
+                `;
+            }
+        }
+    });
 }
 
 // Modified addTask to accept full ISO date-time string
-async function addTask(content, category = "Personal", priority = "Medium", dueDateTime = null, notificationTime = null) {
+async function addTask(content, category = "Personal", priority = "Medium", dueDateTime = null, notificationTime = null, attachments = []) {
     let newTask = null;
     const taskList = document.getElementById("taskList");
     const lastTaskPosition = taskList.children.length > 0 ?
@@ -220,6 +254,8 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
                 due_date: dueDateTime, // Store as full ISO string
                 position: lastTaskPosition,
                 notification_time: notificationTime, // This is expected to be minutes offset
+                subtasks: [], // Initialize with an empty array for subtasks (Supabase jsonb)
+                attachments: attachments, // Store attachments (Supabase jsonb)
             },
         ]).select();
 
@@ -232,7 +268,7 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
     } else {
         const guestTasks = getGuestTasks();
         newTask = {
-            id: Date.now(),
+            id: Date.now(), // Use Date.now() for unique ID in guest mode
             content: content,
             is_done: false,
             category: category,
@@ -241,6 +277,8 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
             due_date: dueDateTime, // Store as full ISO string
             position: lastTaskPosition,
             notification_time: notificationTime, // This is expected to be minutes offset
+            subtasks: [], // Initialize with an empty array for subtasks
+            attachments: attachments, // Store attachments
         };
         guestTasks.push(newTask);
         saveGuestTasks(guestTasks);
@@ -288,6 +326,10 @@ async function deleteTask(id) {
     clearScheduledNotification(id);
 
     if (currentUser) {
+        // Optional: If you implement actual Supabase Storage, you might want to
+        // delete associated files from storage here before deleting the task.
+        // This would require fetching the task's attachments first.
+
         const { error } = await supabase
             .from("tasks")
             .delete()
@@ -333,7 +375,7 @@ async function loadNote() {
             .eq("user_id", currentUser.id)
             .single();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
             console.error("Failed to load note from Supabase:", error.message);
             return;
         }
@@ -348,14 +390,14 @@ async function loadNote() {
 
 // --- Helper / UI Functions ---
 
-function renderTasks(tasks) {
+function renderTasks(tasksToRender) {
   const taskList = document.getElementById("taskList");
   if (!taskList) {
     console.error("Task list element not found!");
     return;
   }
   taskList.innerHTML = "";
-  tasks.forEach(task => {
+  tasksToRender.forEach(task => {
     const li = createTaskElement(task);
     taskList.appendChild(li);
   });
@@ -538,8 +580,6 @@ function getTodayDateString() {
 }
 
 // Function to schedule a single task notification
-// Inside script.js
-
 function scheduleTaskNotification(task) {
     // Only schedule if user is logged in, task has a due date, and is not done.
     if (!task.due_date || task.is_done) {
@@ -570,7 +610,7 @@ function scheduleTaskNotification(task) {
         console.log(`Scheduling in-app notification for task "${task.content}" in ${timeUntilNotification / 1000 / 60} minutes.`);
         const timeoutId = setTimeout(() => {
             const formattedDueTime = new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const notificationMessage = `${task.content} at ${formattedDueTime} in category ${task.category}`;
+            const notificationMessage = `${task.content} at ${formattedDueTime}`;
 
             // Only show in-app custom alert
             showCustomAlert(`🔔 ${notificationMessage}`);
@@ -613,6 +653,8 @@ function clearAllScheduledNotifications() {
     Object.keys(notificationTimers).forEach(key => delete notificationTimers[key]);
 }
 
+// Variable to hold the currently dragged list item
+let draggedItem = null;
 
 function createTaskElement(task) {
     const li = document.createElement("li");
@@ -622,8 +664,9 @@ function createTaskElement(task) {
     li.dataset.taskId = task.id;
     li.dataset.priority = task.priority || "Medium";
     li.dataset.position = task.position || 0;
+    li.dataset.createdAt = task.created_at; // Store creation date for sorting
 
-        if (task.is_done) {
+    if (task.is_done) {
         li.classList.add("finished");
     }
 
@@ -661,35 +704,11 @@ function createTaskElement(task) {
       const taskId = li.dataset.taskId;
       const isChecked = checkbox.checked;
 
-      if (isChecked) {
-        li.classList.add("finished");
-        // Re-sort to move finished tasks to the bottom
-        const finishedTasks = [...taskList.children].filter(item => item.classList.contains("finished"));
-        const lastFinished = finishedTasks[finishedTasks.length - 1];
-        if (lastFinished) {
-          taskList.insertBefore(li, lastFinished.nextSibling);
-        } else {
-          taskList.appendChild(li); // Should go to end if no other finished tasks
-        }
-        clearScheduledNotification(task.id);
-      } else {
-        li.classList.remove("finished");
-        // Re-sort to move unfinished tasks to the top, maintaining order
-        const firstUnfinished = [...taskList.children].find(item => !item.classList.contains("finished"));
-        if (firstUnfinished) {
-          taskList.insertBefore(li, firstUnfinished);
-        } else {
-          taskList.prepend(li); // Should go to beginning if no other unfinished tasks
-        }
-        scheduleTaskNotification(task);
-      }
-
       if (taskId) {
-        // IMPORTANT: Update the task in Supabase or Local Storage
         await updateTask(taskId, { is_done: isChecked });
       }
-      await updateTaskPositionsInDB(); // Update positions after re-ordering
-      updateTaskCounter();
+      // Reload tasks to re-render with updated completion status and apply filters/sorting
+      await loadTasks(); 
     });
     li.appendChild(checkbox);
 
@@ -700,6 +719,51 @@ function createTaskElement(task) {
     span.setAttribute("data-raw", task.content || "");
     li.appendChild(span);
     
+    // NEW: Attachment Icon for task list item
+    if (task.attachments && task.attachments.length > 0) {
+        const attachmentIcon = document.createElement("span");
+        attachmentIcon.classList.add("attachment-icon"); // Add a class for styling
+        attachmentIcon.innerHTML = `🗂️`; // Paperclip icon
+        attachmentIcon.title = "View attachments";
+        attachmentIcon.style.cursor = "pointer";
+        attachmentIcon.addEventListener("click", () => {
+            let attachmentListHtml = "<h3>Attachments:</h3><ul>";
+            task.attachments.forEach(att => {
+                attachmentListHtml += `<li><a href="${att.url}" target="_blank" rel="noopener noreferrer">${att.name}</a></li>`;
+            });
+            attachmentListHtml += "</ul>";
+            showCustomAlert(attachmentListHtml);
+        });
+        li.appendChild(attachmentIcon);
+    }
+    // NEW: Subtask Progress Display
+    const subtaskProgressDisplay = document.createElement("span");
+    subtaskProgressDisplay.classList.add("subtask-progress-display");
+    if (task.subtasks && task.subtasks.length > 0) {
+        const completedSubtasks = task.subtasks.filter(st => st.is_done).length;
+        subtaskProgressDisplay.textContent = `✅ ${completedSubtasks}/${task.subtasks.length}`;
+    } else {
+        subtaskProgressDisplay.textContent = ``; // No display if no subtasks
+    }
+    li.appendChild(subtaskProgressDisplay);
+    
+    // Notification Time Display
+    const notificationTimeDisplay = document.createElement("span");
+    notificationTimeDisplay.classList.add("notification-time-display");
+    if (task.notification_time !== null && task.notification_time > 0 && task.due_date) {
+        const dueDateTime = new Date(task.due_date);
+        if (!isNaN(dueDateTime.getTime())) {
+            const notificationTimestamp = dueDateTime.getTime() - (task.notification_time * 60 * 1000);
+            const actualNotificationTime = new Date(notificationTimestamp);
+            notificationTimeDisplay.textContent = `🔔 ${actualNotificationTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        } else {
+            notificationTimeDisplay.textContent = `🔔 Invalid Due Date for Notification`;
+        }
+    } else {
+        notificationTimeDisplay.textContent = ``;
+    }
+    li.appendChild(notificationTimeDisplay); // Appended after dueDateDisplay
+
     // Due Date Display
     const dueDateDisplay = document.createElement("span");
     dueDateDisplay.classList.add("due-date-display");
@@ -716,23 +780,6 @@ function createTaskElement(task) {
     li.appendChild(dueDateDisplay); // Appended after priorityLabel
 
 
-    // Notification Time Display
-    const notificationTimeDisplay = document.createElement("span");
-    notificationTimeDisplay.classList.add("notification-time-display");
-    if (task.notification_time !== null && task.notification_time > 0 && task.due_date) {
-        const dueDateTime = new Date(task.due_date);
-        if (!isNaN(dueDateTime.getTime())) {
-            const notificationTimestamp = dueDateTime.getTime() - (task.notification_time * 60 * 1000);
-            const actualNotificationTime = new Date(notificationTimestamp);
-            notificationTimeDisplay.textContent = `🔔 ${actualNotificationTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        } else {
-            notificationTimeDisplay.textContent = `🔔 Invalid Due Date for Notification`;
-        }
-    } else {
-        notificationTimeDisplay.textContent = `🔔`;
-    }
-    li.appendChild(notificationTimeDisplay); // Appended after dueDateDisplay
-
     // Category label - MOVED HERE
     const categoryLabel = document.createElement("span");
     categoryLabel.classList.add("category-label");
@@ -742,21 +789,10 @@ function createTaskElement(task) {
     categoryLabel.title = `Filter by ${task.category || "Personal"}`;
 
     categoryLabel.addEventListener("click", (e) => {
-      const allTasks = document.querySelectorAll("#taskList li");
-      const isActive = categoryLabel.classList.toggle("active-category");
-
-      allTasks.forEach(taskEl => {
-        const taskCat = taskEl.dataset.category;
-        const shouldShow = isActive ? taskCat === task.category : true;
-        taskEl.style.display = shouldShow ? "" : "none";
-      });
-
-      document.querySelectorAll(".category-label").forEach(label => {
-        if (label !== categoryLabel) label.classList.remove("active-category");
-      });
-
-      if (!isActive) {
-        allTasks.forEach(taskEl => taskEl.style.display = "");
+      const categoryFilter = document.getElementById("categoryFilter");
+      if (categoryFilter) {
+        categoryFilter.value = task.category || "all";
+        filterTasks(); // Re-run filter with the selected category
       }
     });
     li.appendChild(categoryLabel); // Appended after span
@@ -769,27 +805,15 @@ function createTaskElement(task) {
     priorityLabel.title = `Filter by priority: ${task.priority || "Medium"}`;
 
     priorityLabel.addEventListener("click", (e) => {
-      const allTasks = document.querySelectorAll("#taskList li");
-      const isActive = priorityLabel.classList.toggle("active-priority");
-
-      allTasks.forEach(taskEl => {
-        const taskPriority = taskEl.dataset.priority;
-        const shouldShow = isActive ? taskPriority === (task.priority || "Medium") : true;
-        taskEl.style.display = shouldShow ? "" : "none";
-      });
-
-      document.querySelectorAll(".priority-label").forEach(label => {
-        if (label !== priorityLabel) label.classList.remove("active-priority");
-      });
-
-      if (!isActive) {
-        allTasks.forEach(taskEl => taskEl.style.display = "");
+      const priorityFilter = document.getElementById("priorityFilter");
+      if (priorityFilter) {
+        priorityFilter.value = task.priority || "all";
+        filterTasks(); // Re-run filter with the selected priority
       }
     });
     li.appendChild(priorityLabel); // Appended after categoryLabel
 
-
-
+    
     // Task Actions container
     const taskActions = document.createElement("div");
     taskActions.classList.add("task-actions");
@@ -813,8 +837,8 @@ function createTaskElement(task) {
       showCustomConfirm("Are you sure you want to delete this task?", async () => {
           const taskId = li.dataset.taskId;
           await deleteTask(taskId);
-          taskList.removeChild(li);
-          updateTaskCounter();
+          // Instead of removing li directly, reload tasks to ensure search/filter state is consistent
+          await loadTasks(); 
       });
     });
     taskActions.appendChild(deleteBtn);
@@ -823,65 +847,311 @@ function createTaskElement(task) {
     li.appendChild(taskActions);
 
 
-    // Drag & drop handlers
+    // Subtasks section
+    const subtasksContainer = document.createElement("div");
+    subtasksContainer.classList.add("subtasks-container");
+    // Initially hide subtasks unless previously expanded
+    if (expandedTaskIds.has(task.id)) {
+        subtasksContainer.style.display = "block";
+    } else {
+        subtasksContainer.style.display = "none";
+    }
+
+    const subtaskInputGroup = document.createElement("div");
+    subtaskInputGroup.classList.add("subtask-input-group");
+
+    const subtaskInput = document.createElement("input");
+    subtaskInput.type = "text";
+    subtaskInput.placeholder = "Add a sub-task...";
+    subtaskInput.classList.add("input", "subtask-input");
+
+    const addSubtaskButton = document.createElement("button");
+    addSubtaskButton.textContent = "Add Sub-task";
+    addSubtaskButton.classList.add("button", "add-subtask-button");
+    addSubtaskButton.addEventListener("click", async () => {
+        const content = subtaskInput.value.trim();
+        if (content) {
+            await addSubTask(task.id, content);
+            subtaskInput.value = "";
+            await loadTasks(); // Reload to update UI with new subtask
+        } else {
+            showCustomAlert("Sub-task content cannot be empty.");
+        }
+    });
+    subtaskInput.addEventListener("keypress", async (e) => {
+        if (e.key === "Enter") {
+            const content = subtaskInput.value.trim();
+            if (content) {
+                await addSubTask(task.id, content);
+                subtaskInput.value = "";
+                await loadTasks(); // Reload to update UI with new subtask
+            } else {
+                showCustomAlert("Sub-task content cannot be empty.");
+            }
+        }
+    });
+
+    subtaskInputGroup.appendChild(subtaskInput);
+    subtaskInputGroup.appendChild(addSubtaskButton);
+    subtasksContainer.appendChild(subtaskInputGroup);
+
+    const subtaskList = document.createElement("ul");
+    subtaskList.classList.add("subtask-list");
+    subtasksContainer.appendChild(subtaskList);
+
+    li.appendChild(subtasksContainer);
+
+    // Expand/Collapse button for subtasks
+    const toggleSubtasksBtn = document.createElement("button");
+    toggleSubtasksBtn.classList.add("toggle-subtasks-button");
+    // Set initial icon based on expanded state
+    if (expandedTaskIds.has(task.id)) {
+        toggleSubtasksBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+                <path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clip-rule="evenodd" />
+            </svg>
+        `; // Up arrow when expanded
+        toggleSubtasksBtn.classList.add("expanded");
+    } else {
+        toggleSubtasksBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+                <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd" />
+            </svg>
+        `; // Down arrow initially
+        toggleSubtasksBtn.classList.remove("expanded");
+    }
+
+    toggleSubtasksBtn.title = "Toggle subtasks";
+    toggleSubtasksBtn.addEventListener("click", () => {
+        const isExpanded = subtasksContainer.style.display === "block";
+        subtasksContainer.style.display = isExpanded ? "none" : "block";
+        
+        if (isExpanded) {
+            expandedTaskIds.delete(task.id);
+        } else {
+            expandedTaskIds.add(task.id);
+        }
+
+        toggleSubtasksBtn.classList.toggle("expanded", !isExpanded);
+        toggleSubtasksBtn.innerHTML = isExpanded ? `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+                <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd" />
+            </svg>
+        ` : `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+                <path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clip-rule="evenodd" />
+            </svg>
+        `; // Up arrow when expanded
+    });
+    li.insertBefore(toggleSubtasksBtn, li.querySelector(".task-actions")); // Insert before task actions
+
+    // Render existing subtasks
+    if (task.subtasks && task.subtasks.length > 0) {
+        task.subtasks.forEach(subtask => {
+            const subtaskLi = createSubTaskElement(task.id, subtask);
+            subtaskList.appendChild(subtaskLi);
+        });
+    }
+
+
+    // Drag & drop handlers (existing, moved to end for clarity)
     li.addEventListener("dragstart", e => {
       li.classList.add("dragging");
+      draggedItem = li; // Store the dragged item
       e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", null);
+      e.dataTransfer.setData("text/plain", null); // Required for Firefox
     });
+
     li.addEventListener("dragend", () => {
       li.classList.remove("dragging");
-      [...taskList.children].forEach(item => item.classList.remove("dragover"));
-      updateTaskPositionsInDB();
-    });
-    li.addEventListener("dragover", e => {
-      e.preventDefault();
-      const dragging = taskList.querySelector(".dragging");
-      if (li === dragging) return;
-
+      draggedItem = null; // Clear the dragged item reference
+      // Remove 'dragover' from all elements in case it was left on one
       [...taskList.children].forEach(item => {
-          item.classList.remove("dragover");
+          item.classList.remove("dragover-top", "dragover-bottom");
           item.style.borderTop = "";
           item.style.borderBottom = "";
       });
+      updateTaskPositionsInDB();
+    });
+
+    li.addEventListener("dragover", e => {
+      e.preventDefault(); // Allow drop
+      if (!draggedItem || draggedItem === li) return; // Don't do anything if no item is dragged or if dragging over itself
+
+      // Clear all previous dragover indicators efficiently
+      // We only clear if a new item is being hovered, not on every single pixel movement
+      const currentDragoverTop = taskList.querySelector(".dragover-top");
+      if (currentDragoverTop && currentDragoverTop !== li) {
+          currentDragoverTop.classList.remove("dragover-top");
+          currentDragoverTop.style.borderTop = "";
+      }
+      const currentDragoverBottom = taskList.querySelector(".dragover-bottom");
+      if (currentDragoverBottom && currentDragoverBottom !== li) {
+          currentDragoverBottom.classList.remove("dragover-bottom");
+          currentDragoverBottom.style.borderBottom = "";
+      }
 
       const rect = li.getBoundingClientRect();
       const offset = e.clientY - rect.top;
 
+      // Determine if hovering over the top or bottom half to indicate insertion point
       if (offset < rect.height / 2) {
-        li.classList.add("dragover");
-        li.style.borderTop = "2px solid var(--highlight-color)";
+        li.classList.add("dragover-top"); // Add class for top insertion
+        li.style.borderTop = "2px solid var(--highlight-color)"; // Keep for immediate visual
+        li.style.borderBottom = ""; // Ensure bottom border is clear
       } else {
-        li.classList.add("dragover");
-        li.style.borderBottom = "2px solid var(--highlight-color)";
+        li.classList.add("dragover-bottom"); // Add class for bottom insertion
+        li.style.borderBottom = "2px solid var(--highlight-color)"; // Keep for immediate visual
+        li.style.top = ""; // Ensure top border is clear
       }
     });
+
     li.addEventListener("dragleave", () => {
-      li.classList.remove("dragover");
-      li.style.borderTop = "";
-      li.style.borderBottom = "";
+      // Only remove dragover if it's not the currently dragged item itself
+      if (li !== draggedItem) {
+          li.classList.remove("dragover-top", "dragover-bottom"); // Remove specific classes
+          li.style.borderTop = "";
+          li.style.bottom = "";
+      }
     });
+
     li.addEventListener("drop", e => {
       e.preventDefault();
-      const dragging = taskList.querySelector(".dragging");
-      if (!dragging || dragging === li) return;
+      if (!draggedItem || draggedItem === li) return;
 
-      li.classList.remove("dragover");
+      // Clear dragover styles from the dropped-on element
+      li.classList.remove("dragover-top", "dragover-bottom");
       li.style.borderTop = "";
-      li.style.borderBottom = "";
+      li.style.bottom = "";
 
       const rect = li.getBoundingClientRect();
       const offset = e.clientY - rect.top;
 
+      // Insert the dragged item before or after the target item
       if (offset < rect.height / 2) {
-        taskList.insertBefore(dragging, li);
+        taskList.insertBefore(draggedItem, li);
       } else {
-        taskList.insertBefore(dragging, li.nextSibling);
+        taskList.insertBefore(draggedItem, li.nextSibling);
       }
+      // updateTaskPositionsInDB will be called in dragend,
+      // which fires after drop.
     });
-
+    
     return li;
   }
+
+// NEW: Function to create a sub-task element
+function createSubTaskElement(parentTaskId, subtask) {
+    const li = document.createElement("li");
+    li.classList.add("subtask-item");
+    li.dataset.subtaskId = subtask.id;
+    li.dataset.parentTaskId = parentTaskId;
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = subtask.is_done || false;
+    checkbox.addEventListener("change", async () => {
+        await toggleSubTask(parentTaskId, subtask.id, checkbox.checked);
+        // We only need to update the UI for this specific subtask
+        const subtaskTextSpan = li.querySelector(".subtask-text");
+        if (subtaskTextSpan) {
+            if (checkbox.checked) {
+                subtaskTextSpan.classList.add("finished");
+            } else {
+                subtaskTextSpan.classList.remove("finished");
+            }
+        }
+        // Update the parent task's subtask progress display
+        const parentTaskElement = document.querySelector(`li[data-task-id="${parentTaskId}"]`);
+        if (parentTaskElement) {
+            const parentTask = allTasks.find(t => t.id == parentTaskId);
+            if (parentTask && parentTask.subtasks) {
+                const completedSubtasks = parentTask.subtasks.filter(st => st.is_done).length;
+                const subtaskProgressDisplay = parentTaskElement.querySelector(".subtask-progress-display");
+                if (subtaskProgressDisplay) {
+                    subtaskProgressDisplay.textContent = `✅ ${completedSubtasks}/${parentTask.subtasks.length}`;
+                }
+            }
+        }
+    });
+    li.appendChild(checkbox);
+
+    const span = document.createElement("span");
+    span.classList.add("subtask-text");
+    span.textContent = subtask.content;
+    if (subtask.is_done) {
+        span.classList.add("finished");
+    }
+    li.appendChild(span);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.classList.add("delete-button", "subtask-delete-button");
+    deleteBtn.innerHTML = `🗑️`;
+    deleteBtn.addEventListener("click", async () => {
+        showCustomConfirm("Are you sure you want to delete this sub-task?", async () => {
+            await deleteSubTask(parentTaskId, subtask.id);
+            await loadTasks(); // Reload to update UI
+        });
+    });
+    li.appendChild(deleteBtn);
+
+    return li;
+}
+
+// NEW: Function to add a sub-task to a main task
+async function addSubTask(parentTaskId, content) {
+    const parentTask = allTasks.find(task => task.id == parentTaskId);
+    if (!parentTask) {
+        console.error("Parent task not found for adding sub-task:", parentTaskId);
+        return;
+    }
+
+    const newSubtask = {
+        id: crypto.randomUUID(), // Use crypto.randomUUID() for unique IDs
+        content: content,
+        is_done: false,
+    };
+
+    // Ensure subtasks array exists
+    if (!parentTask.subtasks) {
+        parentTask.subtasks = [];
+    }
+    parentTask.subtasks.push(newSubtask);
+
+    // Update the main task in DB/Local Storage
+    await updateTask(parentTaskId, { subtasks: parentTask.subtasks });
+}
+
+// NEW: Function to toggle a sub-task's completion status
+async function toggleSubTask(parentTaskId, subtaskId, isDone) {
+    const parentTask = allTasks.find(task => task.id == parentTaskId);
+    if (!parentTask || !parentTask.subtasks) {
+        console.error("Parent task or subtasks not found for toggling sub-task:", parentTaskId);
+        return;
+    }
+
+    const subtaskIndex = parentTask.subtasks.findIndex(st => st.id == subtaskId);
+    if (subtaskIndex !== -1) {
+        parentTask.subtasks[subtaskIndex].is_done = isDone;
+        await updateTask(parentTaskId, { subtasks: parentTask.subtasks });
+    }
+}
+
+// NEW: Function to delete a sub-task
+async function deleteSubTask(parentTaskId, subtaskId) {
+    const parentTask = allTasks.find(task => task.id == parentTaskId);
+    if (!parentTask || !parentTask.subtasks) {
+        console.error("Parent task or subtasks not found for deleting sub-task:", parentTaskId);
+        return;
+    }
+
+    parentTask.subtasks = parentTask.subtasks.filter(st => st.id != subtaskId);
+    await updateTask(parentTaskId, { subtasks: parentTask.subtasks });
+}
+
+
+// Global array to hold files selected for a new task
+let newSelectedFiles = [];
 
 async function addTaskFromInput() {
     const taskInput = document.getElementById("taskInput");
@@ -889,11 +1159,7 @@ async function addTaskFromInput() {
     const prioritySelect = document.getElementById("prioritySelect");
     const dueDateInput = document.getElementById("dueDate"); // Updated ID
     const dueTimeInput = document.getElementById("dueTime"); // Updated ID
-    const taskList = document.getElementById("taskList");
-
-const newNotificationOffset = document.getElementById('newNotificationOffset');
-// For the Edit Task Modal (you likely already have this, but confirm its ID)
-const editNotificationOffset = document.getElementById('editNotificationOffset');
+    const newAttachmentsDisplay = document.getElementById("newAttachmentsDisplay"); // Get the display area
 
     const taskText = taskInput.value.trim();
     if (!taskText) {
@@ -922,22 +1188,36 @@ const editNotificationOffset = document.getElementById('editNotificationOffset')
         }
     }
 
-    // `notificationTime` (offset in minutes) is not set directly from the add task form
-    // If you need it, add a separate input for it in the add task section.
-    const newTask = await addTask(taskText, category, priority, dueDateTime, null); // Passing null for notification offset
+    // Handle attachments for new task using newSelectedFiles
+    const attachments = [];
+    for (const file of newSelectedFiles) {
+        const attachmentInfo = await handleFileUpload(null, file); // Pass null for taskId initially, will be updated later
+        if (attachmentInfo) {
+            attachments.push(attachmentInfo);
+        }
+    }
+
+    const newTask = await addTask(taskText, category, priority, dueDateTime, null, attachments); // Pass attachments
 
     if (!newTask) return;
 
-    // No need to create element and append, loadTasks() will re-render everything
-    // const li = createTaskElement(newTask);
-    // taskList.appendChild(li);
+    // If attachments were added and we are in Supabase mode, update the task with the real task ID
+    if (currentUser && attachments.length > 0) {
+        const updatedAttachments = attachments.map(att => ({ ...att, task_id: newTask.id }));
+        await updateTask(newTask.id, { attachments: updatedAttachments });
+    }
+
 
     taskInput.value = "";
     categorySelect.value = "Personal";
     prioritySelect.value = "Medium";
     dueDateInput.value = "";
     dueTimeInput.value = "";
-    // notificationTimeInput.value = "15"; // Removed as this input is now for dueTime
+    
+    // Clear selected files and update display for new task form
+    newSelectedFiles = []; 
+    newAttachmentsDisplay.innerHTML = ''; 
+
     updateTaskCounter();
     await loadTasks(); // Reload tasks to ensure new task is rendered and sorted
 }
@@ -1024,9 +1304,9 @@ function showCustomPrompt(message, onConfirm, defaultValue = '') {
 
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-            modal.querySelector('.confirm-button').click();
+            modal.querySelector('.confirm-button').click(); // Corrected to confirm-button
         } else if (e.key === 'Escape') {
-            modal.querySelector('.cancel-button').click();
+            modal.querySelector('.cancel-button').click(); // Corrected to cancel-button
         }
     });
 
@@ -1051,7 +1331,10 @@ const editPrioritySelect = document.getElementById("editPrioritySelect");
 const editDueDate = document.getElementById("editDueDate");
 const editDueTime = document.getElementById("editDueTime"); // New ID for due time in modal
 const editNotificationOffset = document.getElementById("editNotificationOffset"); // New ID for notification offset in modal
+const editAttachmentInput = document.getElementById("editAttachmentInput"); // NEW attachment input for edit modal
+const currentAttachmentsDisplay = document.getElementById("currentAttachmentsDisplay"); // NEW attachments display container
 
+let attachmentsToKeep = []; // Global to track attachments in edit modal
 
 function showEditModal(task) {
     editTaskId.value = task.id;
@@ -1062,7 +1345,18 @@ function showEditModal(task) {
     ensureOptionExists(editPrioritySelect, task.priority);
 
     editCategorySelect.value = task.category || "Personal";
-    editPrioritySelect.value = task.priority || "Medium";
+    editPrioritySelect.value = "Medium"; // Default to Medium if not set
+    if (task.priority) {
+        editPrioritySelect.value = task.priority;
+    } else {
+        // If the task has no priority, try to select 'Medium' or the first available option
+        const mediumOption = Array.from(editPrioritySelect.options).find(opt => opt.value === "Medium");
+        if (mediumOption) {
+            editPrioritySelect.value = "Medium";
+        } else if (editPrioritySelect.options.length > 0) {
+            editPrioritySelect.value = editPrioritySelect.options[0].value;
+        }
+    }
 
     // Format due_date for input[type="date"] and due_time for input[type="time"]
  if (task.due_date) {
@@ -1090,6 +1384,10 @@ function showEditModal(task) {
     // Set notification offset
     editNotificationOffset.value = task.notification_time !== null ? task.notification_time : '';
 
+    // Handle attachments in edit modal
+    attachmentsToKeep = [...(task.attachments || [])]; // Initialize with existing attachments
+    renderAttachments(attachmentsToKeep, currentAttachmentsDisplay, task.id, true); // Render existing, allow removal
+
     editTaskModal.style.display = "flex"; // Use flex to center
 }
 
@@ -1109,6 +1407,9 @@ function ensureOptionExists(selectElement, value) {
 
 function hideEditModal() {
     editTaskModal.style.display = "none";
+    editAttachmentInput.value = ""; // Clear file input when modal closes
+    currentAttachmentsDisplay.innerHTML = ""; // Clear displayed attachments
+    attachmentsToKeep = []; // Reset attachments to keep
 }
 
 async function saveEditedTask() {
@@ -1139,12 +1440,28 @@ async function saveEditedTask() {
         }
     }
 
+    // Process new attachments from the edit modal's file input
+    const newAttachments = [];
+    if (editAttachmentInput.files.length > 0) {
+        for (const file of editAttachmentInput.files) {
+            // Pass the taskId to handleFileUpload for Supabase Storage path
+            const attachmentInfo = await handleFileUpload(taskId, file); 
+            if (attachmentInfo) {
+                newAttachments.push(attachmentInfo);
+            }
+        }
+    }
+
+    // Combine attachments to keep with newly uploaded ones
+    const finalAttachments = [...attachmentsToKeep, ...newAttachments];
+
     let updates = {
         content: content,
         category: category,
         priority: priority,
         due_date: updatedDueDateTime, // This will be null if no date is set
         notification_time: notificationOffset, // This will be null if no offset is set
+        attachments: finalAttachments, // Update with the combined attachments
     };
 
     try {
@@ -1156,6 +1473,306 @@ async function saveEditedTask() {
         console.error("Error saving edited task:", error);
         showCustomAlert("Failed to save task changes.");
     }
+}
+
+/**
+ * Handles file upload to Supabase Storage or stores as base64 for guest mode.
+ * @param {string} taskId The ID of the task this attachment belongs to.
+ * @param {File} file The file object to upload.
+ * @returns {Promise<Object|null>} A promise that resolves to an object { name, url, type, file_path (for supabase) } or null on error.
+ */
+async function handleFileUpload(taskId, file) {
+    if (currentUser) {
+        // --- Supabase Storage Upload Implementation ---
+        // You MUST configure your Supabase Storage bucket (e.g., 'task-attachments')
+        // and set up appropriate Row Level Security (RLS) policies for it.
+        // Example RLS:
+        // CREATE POLICY "Allow users to upload files" ON storage.objects FOR INSERT WITH CHECK (auth.uid() = (storage.foldername(bucket_id))[1]::uuid);
+        // CREATE POLICY "Allow users to view their own attachments" ON storage.objects FOR SELECT USING (auth.uid() = (storage.foldername(bucket_id))[1]::uuid);
+        // CREATE POLICY "Allow users to delete their own attachments" ON storage.objects FOR DELETE USING (auth.uid() = (storage.foldername(bucket_id))[1]::uuid);
+
+        // Define the path in your storage bucket: user_id/task_id/file_name
+        const filePath = `${currentUser.id}/${taskId || 'temp'}/${Date.now()}-${file.name}`; // Use 'temp' if taskId is not yet available (for new tasks)
+
+        try {
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('task-attachments') // Replace with your actual bucket name
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false // Set to true if you want to overwrite existing files with the same path
+                });
+
+            if (uploadError) {
+                console.error("Supabase file upload failed:", uploadError.message);
+                showCustomAlert("File upload failed: " + uploadError.message);
+                return null;
+            }
+
+            // Get the public URL for the uploaded file
+            const { data: publicUrlData } = supabase.storage
+                .from('task-attachments') // Replace with your actual bucket name
+                .getPublicUrl(uploadData.path);
+
+            return { 
+                name: file.name, 
+                url: publicUrlData.publicUrl, 
+                type: file.type,
+                file_path: uploadData.path // Store the path for deletion later
+            };
+
+        } catch (e) {
+            console.error("Error during Supabase file upload process:", e);
+            showCustomAlert("An error occurred during file upload.");
+            return null;
+        }
+
+    } else {
+        // Guest mode: Store as Base64 (WARNING: Not suitable for large files! Not persistent across sessions/browsers)
+        console.warn("Guest mode: Files are stored as Base64 data URLs in local storage. They are not uploaded to a server and will be lost if local storage is cleared.");
+        showCustomAlert("Attachments in Guest Mode are stored locally and are not persistent. Log in for full attachment functionality.");
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                resolve({
+                    name: file.name,
+                    url: e.target.result, // Base64 data URL
+                    type: file.type,
+                    file_path: null // No file path for guest mode Base64
+                });
+            };
+            reader.onerror = (e) => {
+                console.error("Error reading file for guest mode:", e);
+                showCustomAlert("Error reading file for guest mode.");
+                resolve(null);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+}
+
+/**
+ * Renders attachment links in a given container.
+ * @param {Array<Object>} attachments Array of attachment objects { name, url, type, file_path }.
+ * @param {HTMLElement} container The DOM element to render attachments into.
+ * @param {string} taskId The ID of the parent task.
+ * @param {boolean} editable If true, includes a remove button for each attachment.
+ */
+function renderAttachments(attachments, container, taskId, editable) {
+    container.innerHTML = ''; // Clear previous attachments
+    attachments.forEach(attachment => {
+        const attachmentItem = document.createElement('span');
+        attachmentItem.classList.add('attachment-item');
+
+        const link = document.createElement('a');
+        link.href = attachment.url;
+        link.textContent = attachment.name;
+        link.target = "_blank"; // Open in new tab
+        link.rel = "noopener noreferrer"; // Security best practice
+        attachmentItem.appendChild(link);
+
+        if (editable) {
+            const removeBtn = document.createElement('button');
+            removeBtn.classList.add('remove-attachment-btn');
+            removeBtn.textContent = 'x';
+            removeBtn.title = `Remove ${attachment.name}`;
+            removeBtn.addEventListener('click', () => {
+                removeAttachment(taskId, attachment.url, attachment.file_path); // Pass file_path for Supabase deletion
+            });
+            attachmentItem.appendChild(removeBtn);
+        }
+        container.appendChild(attachmentItem);
+    });
+}
+
+/**
+ * Removes an attachment from a task.
+ * @param {string} taskId The ID of the task.
+ * @param {string} attachmentUrl The URL of the attachment to remove (used for guest mode).
+ * @param {string} filePath The file path in Supabase Storage (used for logged-in users).
+ */
+async function removeAttachment(taskId, attachmentUrl, filePath) {
+    showCustomConfirm("Are you sure you want to remove this attachment?", async () => {
+        const task = allTasks.find(t => t.id == taskId);
+        if (!task) {
+            console.error("Task not found for attachment removal.");
+            return;
+        }
+
+        let updatedAttachments = [];
+
+        if (currentUser && filePath) {
+            // Logged-in user: Attempt to delete from Supabase Storage
+            try {
+                const { error: storageError } = await supabase.storage
+                    .from('task-attachments') // Replace with your actual bucket name
+                    .remove([filePath]);
+
+                if (storageError) {
+                    console.error("Error deleting file from Supabase Storage:", storageError.message);
+                    showCustomAlert("Failed to delete file from storage: " + storageError.message);
+                    // Even if storage deletion fails, we might still remove from DB to avoid broken links
+                }
+            } catch (e) {
+                console.error("Error during Supabase Storage deletion process:", e);
+                showCustomAlert("An error occurred during file deletion from storage.");
+            }
+            // Filter out the attachment based on file_path (more robust for Supabase)
+            updatedAttachments = task.attachments.filter(att => att.file_path !== filePath);
+        } else {
+            // Guest mode: Filter out the attachment based on URL
+            updatedAttachments = task.attachments.filter(att => att.url !== attachmentUrl);
+        }
+
+        await updateTask(taskId, { attachments: updatedAttachments });
+        // Update the `attachmentsToKeep` array in the modal if it's open
+        attachmentsToKeep = updatedAttachments;
+        renderAttachments(attachmentsToKeep, currentAttachmentsDisplay, taskId, true); // Re-render attachments in modal
+        await loadTasks(); // Reload main task list to reflect changes
+        showCustomAlert("Attachment removed.");
+    });
+}
+
+
+// --- Filter and Sort Functionality ---
+const categoryFilter = document.getElementById("categoryFilter");
+const priorityFilter = document.getElementById("priorityFilter");
+const sortOrder = document.getElementById("sortOrder");
+const showCompleted = document.getElementById("showCompleted");
+const clearFiltersButton = document.getElementById("clearFiltersButton");
+
+
+function populateCategoryFilter(tasks) {
+    const categories = new Set(tasks.map(task => task.category).filter(Boolean)); // Get unique categories
+    categoryFilter.innerHTML = '<option value="all">All Categories</option>'; // Reset
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categoryFilter.appendChild(option);
+    });
+    // Restore previous selection if it still exists
+    const currentCategory = categoryFilter.dataset.currentValue || 'all';
+    if (Array.from(categoryFilter.options).some(opt => opt.value === currentCategory)) {
+        categoryFilter.value = currentCategory;
+    } else {
+        categoryFilter.value = 'all';
+    }
+}
+
+function populatePriorityFilter(tasks) {
+    const priorities = new Set(tasks.map(task => task.priority).filter(Boolean)); // Get unique priorities
+    priorityFilter.innerHTML = '<option value="all">All Priorities</option>'; // Reset
+    // Add default options if they're not in tasks
+    const defaultPriorities = ["Scheduled", "Urgent", "High", "Medium", "Low"];
+    defaultPriorities.forEach(p => {
+        if (!priorities.has(p)) {
+            priorities.add(p);
+        }
+    });
+
+    // Sort priorities based on a predefined order
+    const sortedPriorities = Array.from(priorities).sort((a, b) => {
+        const order = { "Urgent": 1, "High": 2, "Medium": 3, "Low": 4, "Scheduled": 5 };
+        return (order[a] || 99) - (order[b] || 99);
+    });
+
+    sortedPriorities.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p;
+        option.textContent = p;
+        priorityFilter.appendChild(option);
+    });
+    // Restore previous selection if it still exists
+    const currentPriority = priorityFilter.dataset.currentValue || 'all';
+    if (Array.from(priorityFilter.options).some(opt => opt.value === currentPriority)) {
+        priorityFilter.value = currentPriority;
+    } else {
+        priorityFilter.value = 'all';
+    }
+}
+
+function filterTasks() {
+    const searchTerm = document.getElementById("searchInput").value.toLowerCase().trim();
+    const selectedCategory = categoryFilter.value;
+    const selectedPriority = priorityFilter.value;
+    const currentSortOrder = sortOrder.value;
+    const shouldShowCompleted = showCompleted.checked;
+
+    // Store current filter values to reapply after re-rendering
+    categoryFilter.dataset.currentValue = selectedCategory;
+    priorityFilter.dataset.currentValue = selectedPriority;
+    sortOrder.dataset.currentValue = currentSortOrder;
+    showCompleted.dataset.currentValue = shouldShowCompleted;
+
+    let filteredAndSortedTasks = allTasks.filter(task => {
+        const contentMatch = task.content.toLowerCase().includes(searchTerm);
+        const categoryMatch = selectedCategory === "all" || task.category === selectedCategory;
+        const priorityMatch = selectedPriority === "all" || task.priority === selectedPriority;
+        
+        // Check subtasks for search term
+        const subtaskMatch = task.subtasks && task.subtasks.some(subtask => 
+            subtask.content.toLowerCase().includes(searchTerm)
+        );
+        // Check attachments for search term (by name)
+        const attachmentMatch = task.attachments && task.attachments.some(attachment =>
+            attachment.name.toLowerCase().includes(searchTerm)
+        );
+
+        // Filter by completion status
+        const completionMatch = shouldShowCompleted || !task.is_done;
+
+        return (contentMatch || subtaskMatch || attachmentMatch) && categoryMatch && priorityMatch && completionMatch;
+    });
+
+    // Apply sorting
+    filteredAndSortedTasks.sort((a, b) => {
+        if (currentSortOrder === "dueDateAsc") {
+            const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+            const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+            return dateA - dateB;
+        } else if (currentSortOrder === "dueDateDesc") {
+            const dateA = a.due_date ? new Date(a.due_date).getTime() : -Infinity;
+            const dateB = b.due_date ? new Date(b.due_date).getTime() : -Infinity;
+            return dateB - dateA;
+        } else if (currentSortOrder === "priorityHighToLow") {
+            const priorityOrder = { "Urgent": 1, "High": 2, "Medium": 3, "Low": 4, "Scheduled": 5 };
+            return (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99);
+        } else if (currentSortOrder === "priorityLowToHigh") {
+            const priorityOrder = { "Urgent": 1, "High": 2, "Medium": 3, "Low": 4, "Scheduled": 5 };
+            return (priorityOrder[b.priority] || 99) - (priorityOrder[a.priority] || 99);
+        } else if (currentSortOrder === "creationDateDesc") {
+            const dateA = new Date(a.created_at).getTime();
+            const dateB = new Date(b.created_at).getTime();
+            return dateB - dateA;
+        } else if (currentSortOrder === "alphabeticalAsc") {
+            return a.content.localeCompare(b.content);
+        } else if (currentSortOrder === "alphabeticalDesc") {
+            return b.content.localeCompare(a.content);
+        }
+        return 0; // No change in order if no specific sort applied
+    });
+
+    renderTasks(filteredAndSortedTasks);
+    updateTaskCounter();
+}
+
+// Debounce function
+function debounce(func, delay) {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+}
+
+function clearAllFilters() {
+    document.getElementById("searchInput").value = "";
+    categoryFilter.value = "all";
+    priorityFilter.value = "all";
+    sortOrder.value = "creationDateDesc"; // Default sort order
+    showCompleted.checked = false;
+    filterTasks();
 }
 
 
@@ -1199,11 +1816,39 @@ function init() {
   // --- Task Input and Add Button ---
   const addTaskButton = document.getElementById("addTaskButton");
   const taskInput = document.getElementById("taskInput");
+  const newAttachmentInput = document.getElementById("newAttachmentInput");
+  const triggerNewAttachmentInput = document.getElementById("triggerNewAttachmentInput");
+  const newAttachmentsDisplay = document.getElementById("newAttachmentsDisplay");
+
 
   if (addTaskButton) addTaskButton.addEventListener("click", addTaskFromInput);
   if (taskInput) taskInput.addEventListener("keypress", e => {
     if (e.key === "Enter") addTaskFromInput();
   });
+
+  // NEW: Event listener for the "Add Attachment" button
+  if (triggerNewAttachmentInput) {
+      triggerNewAttachmentInput.addEventListener("click", () => {
+          newAttachmentInput.click(); // Programmatically click the hidden file input
+      });
+  }
+
+  // NEW: Event listener for the hidden file input to display selected files
+  if (newAttachmentInput) {
+      newAttachmentInput.addEventListener("change", () => {
+          // Clear previous files if not multi-select, or add to existing
+          newSelectedFiles = Array.from(newAttachmentInput.files); 
+          newAttachmentsDisplay.innerHTML = ''; // Clear previous display
+          if (newSelectedFiles.length > 0) {
+              newSelectedFiles.forEach(file => {
+                  const fileItem = document.createElement('span');
+                  fileItem.classList.add('attachment-item');
+                  fileItem.textContent = file.name;
+                  newAttachmentsDisplay.appendChild(fileItem);
+              });
+          }
+      });
+  }
 
 
   // --- Sidebar Notes Toggle ---
@@ -1249,15 +1894,15 @@ function init() {
             const { error } = await supabase.from('tasks').delete().eq('user_id', currentUser.id);
             if (error) console.error("Error resetting all tasks for user:", error.message);
             else {
-                renderTasks([]);
-                updateTaskCounter();
+                // Instead of rendering empty, reload tasks to ensure global state is reset
+                await loadTasks(); 
                 showCustomAlert("All tasks reset for your account.");
                 clearAllScheduledNotifications();
             }
         } else {
             saveGuestTasks([]);
-            renderTasks([]);
-            updateTaskCounter();
+            // Instead of rendering empty, reload tasks to ensure global state is reset
+            await loadTasks(); 
         }
     });
   });
@@ -1271,7 +1916,7 @@ function init() {
       if (taskId) {
         tasksToDeleteIds.push(Number(taskId));
       }
-      li.remove();
+      // Do not remove li directly, loadTasks will re-render
     });
 
     if (tasksToDeleteIds.length > 0) {
@@ -1292,7 +1937,7 @@ function init() {
       tasksToDeleteIds.forEach(id => clearScheduledNotification(id));
     }
     await updateTaskPositionsInDB();
-    updateTaskCounter();
+    await loadTasks(); // Reload tasks to reflect deletion and update search/filter
   });
 
   // --- Category and Priority Custom Options for ADDING tasks ---
@@ -1417,6 +2062,29 @@ function init() {
       }, "Medium");
     }
   });
+
+  // --- Search Input Event Listener ---
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) {
+      searchInput.addEventListener("input", debounce(filterTasks, 300)); // Debounced search
+  }
+
+  // --- Filter and Sort Event Listeners ---
+  if (categoryFilter) {
+      categoryFilter.addEventListener("change", filterTasks);
+  }
+  if (priorityFilter) {
+      priorityFilter.addEventListener("change", filterTasks);
+  }
+  if (sortOrder) {
+      sortOrder.addEventListener("change", filterTasks);
+  }
+  if (showCompleted) {
+      showCompleted.addEventListener("change", filterTasks);
+  }
+  if (clearFiltersButton) {
+      clearFiltersButton.addEventListener("click", clearAllFilters);
+  }
 
 } // End of init()
 
