@@ -726,11 +726,24 @@ function createTaskElement(task) {
         attachmentIcon.innerHTML = `🗂️`; // Paperclip icon
         attachmentIcon.title = "View attachments";
         attachmentIcon.style.cursor = "pointer";
-        attachmentIcon.addEventListener("click", () => {
+        attachmentIcon.addEventListener("click", async () => { // Made async to await signed URLs
             let attachmentListHtml = "<h3>Attachments:</h3><ul>";
-            task.attachments.forEach(att => {
-                attachmentListHtml += `<li><a href="${att.url}" target="_blank" rel="noopener noreferrer">${att.name}</a></li>`;
-            });
+            for (const att of task.attachments) { // Use for...of for async operations
+                let attachmentUrl = att.url; // Default to stored URL (for guest mode base64 or public URLs)
+                if (currentUser && att.file_path) { // If logged in and file_path exists, generate signed URL
+                    const { data, error } = await supabase.storage
+                        .from('task-attachments') // Your bucket name
+                        .createSignedUrl(att.file_path, 60 * 60); // URL valid for 1 hour (adjust as needed)
+                    if (error) {
+                        console.error("Error creating signed URL:", error.message);
+                        attachmentUrl = "#"; // Fallback if signed URL fails
+                        showCustomAlert("Failed to generate signed URL for " + att.name);
+                    } else {
+                        attachmentUrl = data.signedUrl;
+                    }
+                }
+                attachmentListHtml += `<li><a href="${attachmentUrl}" target="_blank" rel="noopener noreferrer">${att.name}</a></li>`;
+            }
             attachmentListHtml += "</ul>";
             showCustomAlert(attachmentListHtml);
         });
@@ -1483,14 +1496,6 @@ async function saveEditedTask() {
  */
 async function handleFileUpload(taskId, file) {
     if (currentUser) {
-        // --- Supabase Storage Upload Implementation ---
-        // You MUST configure your Supabase Storage bucket (e.g., 'task-attachments')
-        // and set up appropriate Row Level Security (RLS) policies for it.
-        // Example RLS:
-        // CREATE POLICY "Allow users to upload files" ON storage.objects FOR INSERT WITH CHECK (auth.uid() = (storage.foldername(bucket_id))[1]::uuid);
-        // CREATE POLICY "Allow users to view their own attachments" ON storage.objects FOR SELECT USING (auth.uid() = (storage.foldername(bucket_id))[1]::uuid);
-        // CREATE POLICY "Allow users to delete their own attachments" ON storage.objects FOR DELETE USING (auth.uid() = (storage.foldername(bucket_id))[1]::uuid);
-
         // Define the path in your storage bucket: user_id/task_id/file_name
         const filePath = `${currentUser.id}/${taskId || 'temp'}/${Date.now()}-${file.name}`; // Use 'temp' if taskId is not yet available (for new tasks)
 
@@ -1508,17 +1513,27 @@ async function handleFileUpload(taskId, file) {
                 return null;
             }
 
-            // Get the public URL for the uploaded file
-            const { data: publicUrlData } = supabase.storage
-                .from('task-attachments') // Replace with your actual bucket name
-                .getPublicUrl(uploadData.path);
+            // --- CHANGE START ---
+            // Instead of getPublicUrl, use createSignedUrl for private buckets
+            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+                .from('task-attachments') // Your bucket name
+                .createSignedUrl(uploadData.path, 60 * 60 * 24 * 7); // URL valid for 7 days (adjust as needed)
+
+            if (signedUrlError) {
+                console.error("Error creating signed URL after upload:", signedUrlError.message);
+                showCustomAlert("Failed to generate signed URL for uploaded file.");
+                // Optionally, delete the uploaded file if signed URL generation fails
+                await supabase.storage.from('task-attachments').remove([uploadData.path]);
+                return null;
+            }
 
             return { 
                 name: file.name, 
-                url: publicUrlData.publicUrl, 
+                url: signedUrlData.signedUrl, // Store the signed URL
                 type: file.type,
-                file_path: uploadData.path // Store the path for deletion later
+                file_path: uploadData.path // Store the path for future signed URL generation and deletion
             };
+            // --- CHANGE END ---
 
         } catch (e) {
             console.error("Error during Supabase file upload process:", e);
@@ -1534,6 +1549,7 @@ async function handleFileUpload(taskId, file) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 resolve({
+                    id: crypto.randomUUID(), // Assign a unique ID for guest mode attachments
                     name: file.name,
                     url: e.target.result, // Base64 data URL
                     type: file.type,
@@ -1564,10 +1580,34 @@ function renderAttachments(attachments, container, taskId, editable) {
         attachmentItem.classList.add('attachment-item');
 
         const link = document.createElement('a');
-        link.href = attachment.url;
+        // For display, we will generate a signed URL on the fly if file_path exists and user is logged in
+        // Otherwise, use the stored URL (which could be a Base64 for guest mode)
+        link.href = "#"; // Default to a non-functional link until signed URL is generated
         link.textContent = attachment.name;
         link.target = "_blank"; // Open in new tab
         link.rel = "noopener noreferrer"; // Security best practice
+
+        // Event listener to generate signed URL when clicked
+        link.addEventListener('click', async (e) => {
+            e.preventDefault(); // Prevent default link behavior
+            if (currentUser && attachment.file_path) {
+                const { data, error } = await supabase.storage
+                    .from('task-attachments') // Your bucket name
+                    .createSignedUrl(attachment.file_path, 60 * 60); // URL valid for 1 hour
+                if (error) {
+                    console.error("Error creating signed URL for display:", error.message);
+                    showCustomAlert("Failed to open file: " + attachment.name + ". Please try again.");
+                } else {
+                    window.open(data.signedUrl, '_blank'); // Open the signed URL in a new tab
+                }
+            } else if (attachment.url) {
+                // For guest mode (Base64 URL) or if file_path is missing, use the stored URL
+                window.open(attachment.url, '_blank');
+            } else {
+                showCustomAlert("Cannot open attachment. No valid URL or file path found.");
+            }
+        });
+        
         attachmentItem.appendChild(link);
 
         if (editable) {
@@ -1576,7 +1616,8 @@ function renderAttachments(attachments, container, taskId, editable) {
             removeBtn.textContent = 'x';
             removeBtn.title = `Remove ${attachment.name}`;
             removeBtn.addEventListener('click', () => {
-                removeAttachment(taskId, attachment.url, attachment.file_path); // Pass file_path for Supabase deletion
+                // Pass file_path for Supabase deletion, and attachment ID for guest mode if needed
+                removeAttachment(taskId, attachment.id, attachment.file_path); 
             });
             attachmentItem.appendChild(removeBtn);
         }
@@ -1587,10 +1628,10 @@ function renderAttachments(attachments, container, taskId, editable) {
 /**
  * Removes an attachment from a task.
  * @param {string} taskId The ID of the task.
- * @param {string} attachmentUrl The URL of the attachment to remove (used for guest mode).
+ * @param {string} attachmentId The ID of the attachment (used for guest mode).
  * @param {string} filePath The file path in Supabase Storage (used for logged-in users).
  */
-async function removeAttachment(taskId, attachmentUrl, filePath) {
+async function removeAttachment(taskId, attachmentId, filePath) {
     showCustomConfirm("Are you sure you want to remove this attachment?", async () => {
         const task = allTasks.find(t => t.id == taskId);
         if (!task) {
@@ -1619,8 +1660,8 @@ async function removeAttachment(taskId, attachmentUrl, filePath) {
             // Filter out the attachment based on file_path (more robust for Supabase)
             updatedAttachments = task.attachments.filter(att => att.file_path !== filePath);
         } else {
-            // Guest mode: Filter out the attachment based on URL
-            updatedAttachments = task.attachments.filter(att => att.url !== attachmentUrl);
+            // Guest mode: Filter out the attachment based on ID
+            updatedAttachments = task.attachments.filter(att => att.id !== attachmentId);
         }
 
         await updateTask(taskId, { attachments: updatedAttachments });
