@@ -233,7 +233,7 @@ body.notes-open #mainContent {
   font-size: 48px;
   color: var(--fg);
   margin-bottom: 20px;
-  margin-top: 22px;
+  margin-top: 8%;
   justify-self: center;
 }
 
@@ -705,8 +705,7 @@ body[data-theme="dark"] .task-text code {
   user-select: none;
   transition: background-color 0.2s ease;
   text-align: center;
-  min-width: 110px; /* Adjusted width */
-  max-width: 200px; /* Allow content to define width */
+  max-width: max-content;
   box-sizing: border-box; /* Include padding/border in width */
 }
 .due-date-display {
@@ -723,6 +722,9 @@ body[data-theme="dark"] .task-text code {
   width: max-content; /* Allow content to define width */
   box-sizing: border-box; /* Include padding/border in width */
 }
+.due-date-display:empty {
+  display: none;
+}
 .notification-time-display {
   display: inline-block;
   background-color: var(--select-bg);
@@ -733,7 +735,7 @@ body[data-theme="dark"] .task-text code {
   user-select: none;
   transition: background-color 0.2s ease;
   text-align: center;
-  width: 75px; /* Adjusted width */
+  max-width: max-content;
   box-sizing: border-box; /* Include padding/border in width */
 }
 .notification-time-display:empty {
@@ -749,7 +751,7 @@ body[data-theme="dark"] .task-text code {
   user-select: none;
   transition: background-color 0.2s ease;
   text-align: center;
-  width: 100px; /* Adjusted width */
+  max-width: max-content;
   box-sizing: border-box; /* Include padding/border in width */
 }
 /* Specific text colors for the display if needed */
@@ -866,7 +868,7 @@ body[data-theme="dark"] .task-counter-line:hover {
   position: fixed;
   top: 0;
   right: -100%;
-  width: 30vw; /* Changed to viewport width for responsiveness */
+  width: 40vw; /* Changed to viewport width for responsiveness */
   max-width: 100%;
   height: 95%;
   background: var(--card-bg);
@@ -895,72 +897,289 @@ body[data-theme="dark"] .task-counter-line:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 15px; /* Increased margin for better spacing */
   padding-left: 10px;
+  padding-bottom: 10px; /* Add some padding below the header content */
+  border-bottom: 1px solid var(--border); /* Subtle separator */
 }
 
+/* NEW: Styles for the Notes Title */
+.notes-title {
+  font-size: 1.6rem; /* Slightly larger for prominence */
+  font-weight: 700;
+  color: var(--title-color); /* Use the main title color variable */
+  margin: 0; /* Remove default margins */
+  display: flex; /* Align icon and text */
+  align-items: center;
+  gap: 10px; /* Space between icon and text */
+}
+
+/* NEW: Styles for the Notes Icon (📒) */
+.notes-title .circle-icon {
+  background-color: var(--button-bg); /* Use primary button color for icon background */
+  color: var(--button-fg); /* Use button foreground color for icon text */
+  border-radius: 50%;
+  width: 36px; /* Slightly larger icon */
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem; /* Adjust emoji size */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+body[data-theme="dark"] .notes-title .circle-icon {
+  background-color: var(--highlight-color); /* Different color for dark theme icon */
+  color: var(--card-bg); /* Dark theme icon color */
+}
+
+
+/* Enhanced Close Button Styles */
 .close-button {
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-
-  background-color: transparent;
-  color: #888;
-  font-size: 16px;
+  background-color: transparent; /* Start with transparent background */
+  color: var(--fg); /* Use foreground color for the 'X' */
+  font-size: 1.2em; /* Slightly larger 'X' */
   font-weight: bold;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border); /* Keep a subtle border */
   border-radius: 50%;
-
   cursor: pointer;
   transition: all 0.25s ease;
-  margin-right: 20px;
+  margin-right: 5px; /* Adjust margin */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Subtle shadow */
 }
 
 .close-button:hover,
 .close-button:focus {
-  background-color: #eee;
-  color: #111;
-  border-color: #888;
-
+  background-color: var(--select-bg); /* Light background on hover */
+  color: var(--highlight-color); /* Highlight color for 'X' on hover */
+  border-color: var(--highlight-color); /* Highlight border on hover */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* More prominent shadow on hover */
+  transform: scale(1.05); /* Slight scale effect */
 }
 
 body[data-theme="dark"] .close-button {
-  color: #aaa;
-  border-color: #555;
+  color: var(--fg);
+  border-color: var(--border);
 }
 
 body[data-theme="dark"] .close-button:hover {
-  background-color: #444;
-  color: #fff;
-  border-color: #888;
+  background-color: var(--input-bg); /* Darker background on hover */
+  color: var(--highlight-color);
+  border-color: var(--highlight-color);
 }
 
 
-#notesSidebar textarea#notes {
-  width: calc(100% - 20px);
-  height: calc(100% - 100px);
-  padding: 10px;
-  margin: 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-family: Arial, sans-serif;
-  font-size: 1em;
-  line-height: 1.5;
-  resize: none;
-  background-color: var(--input-bg);
-  color: var(--fg);
-  box-sizing: border-box;
+/* NEW: Notes specific styles */
+.notes-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 0 10px;
+    align-items: center;
 }
 
-#notesSidebar {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  padding-bottom: 20px;
+.notes-controls .input.note-search-input {
+    flex-grow: 1;
+    min-width: 150px;
+    padding: 8px 12px;
+    font-size: 0.9em;
 }
 
+.notes-controls .select-box {
+    min-width: max-content; /* Allow it to shrink */
+    width: auto;
+    flex-grow: 1;
+    padding-right: 2.4rem;
+}
+
+.note-action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end; /* Align buttons to the right */
+    flex-grow: 1;
+}
+
+.note-action-buttons .button {
+    padding: 8px 12px;
+    font-size: 0.9em;
+}
+
+.note-list-container {
+    flex-grow: 0; /* Don't let it grow */
+    flex-shrink: 0; /* Don't let it shrink */
+    max-height: 200px; /* Limit height for scrollability */
+    overflow-y: auto;
+    margin-bottom: 15px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    background-color: var(--input-bg);
+}
+
+.note-list-container ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.note-list-container li {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.note-list-container li:last-child {
+    border-bottom: none;
+}
+
+.note-list-container li:hover {
+    background-color: var(--select-bg);
+}
+
+.note-list-container li.selected {
+    background-color: var(--highlight-color);
+    color: var(--button-fg);
+    font-weight: bold;
+}
+
+body[data-theme="dark"] .note-list-container li.selected {
+    background-color: #0056b3; /* Darker blue for selected in dark theme */
+}
+
+.note-list-item-title {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.note-list-item-date {
+    font-size: 0.8em;
+    color: #666;
+    flex-shrink: 0;
+}
+body[data-theme="dark"] .note-list-item-date {
+    color: #bbb;
+}
+
+.note-editor-area {
+    flex-grow: 1; /* Allow editor to take remaining space */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--input-bg);
+}
+
+.note-title-input {
+    width: 100%;
+    padding: 10px;
+    font-size: 1.1em;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background-color: var(--input-bg);
+    color: var(--fg);
+    box-sizing: border-box;
+}
+
+.note-editor-area .select-box {
+    width: 100%;
+    min-width: unset;
+}
+
+/* Quill Editor Styles */
+.notes-editor {
+    height: 100%; /* Fill remaining space in its container */
+    min-height: 200px; /* Minimum height for the editor */
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow-y: auto; /* Enable scrolling for content */
+    background-color: var(--input-bg);
+}
+
+.notes-editor .ql-toolbar {
+    border-bottom: 1px solid var(--border);
+    background-color: var(--card-bg);
+    border-radius: 5px 5px 0 0;
+}
+
+.notes-editor .ql-container {
+    border: none;
+    font-family: Arial, sans-serif;
+    font-size: 1em;
+    color: var(--fg);
+}
+
+.notes-editor .ql-editor {
+    min-height: 150px; /* Min height for the editable area */
+    padding: 15px;
+    line-height: 1.6;
+}
+
+body[data-theme="dark"] .notes-editor .ql-toolbar {
+    background-color: var(--card-bg);
+    border-color: var(--border);
+}
+
+body[data-theme="dark"] .notes-editor .ql-container {
+    color: var(--fg);
+}
+
+/* Specific styling for Quill toolbar icons in dark mode */
+body[data-theme="dark"] .notes-editor .ql-snow .ql-stroke {
+    stroke: var(--fg);
+}
+body[data-theme="dark"] .notes-editor .ql-snow .ql-fill {
+    fill: var(--fg);
+}
+body[data-theme="dark"] .notes-editor .ql-snow.ql-toolbar button:hover .ql-fill,
+body[data-theme="dark"] .notes-editor .ql-snow.ql-toolbar button:hover .ql-stroke,
+body[data-theme="dark"] .notes-editor .ql-snow .ql-toolbar button.ql-active .ql-fill,
+body[data-theme="dark"] .notes-editor .ql-snow .ql-toolbar button.ql-active .ql-stroke {
+    fill: var(--highlight-color);
+    stroke: var(--highlight-color);
+}
+body[data-theme="dark"] .notes-editor .ql-snow .ql-picker.ql-expanded .ql-picker-label,
+body[data-theme="dark"] .notes-editor .ql-snow .ql-picker.ql-expanded .ql-picker-options {
+    background-color: var(--card-bg);
+    color: var(--fg);
+    border-color: var(--border);
+}
+body[data-theme="dark"] .notes-editor .ql-snow .ql-picker.ql-expanded .ql-picker-item,
+body[data-theme="dark"] .notes-editor .ql-snow .ql-picker.ql-expanded .ql-picker-label {
+    color: var(--fg);
+}
+body[data-theme="dark"] .notes-editor .ql-snow .ql-picker.ql-expanded .ql-picker-item:hover {
+    background-color: var(--select-bg);
+}
+body[data-theme="dark"] .notes-editor .ql-snow .ql-tooltip {
+    background-color: var(--card-bg);
+    color: var(--fg);
+    border-color: var(--border);
+}
+body[data-theme="dark"] .notes-editor .ql-snow .ql-tooltip input[type=text] {
+    background-color: var(--input-bg);
+    color: var(--fg);
+    border-color: var(--border);
+}
+
+#notesSidebar .button {
+    width: auto; /* Override full width from general button style */
+}
 
 /* --- Drag & Drop --- */
 #taskList li.dragging {

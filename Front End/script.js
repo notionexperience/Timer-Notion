@@ -2,7 +2,8 @@ import { supabase } from './supabase-init.js';
 
 let currentUser = null; // null if guest, user object if logged in
 const LOCAL_STORAGE_KEY_TASKS = 'focusflow_guest_tasks';
-const LOCAL_STORAGE_KEY_NOTES = 'focusflow_guest_notes';
+// NEW: Changed to store an array of notes for guest mode
+const LOCAL_STORAGE_KEY_NOTES = 'focusflow_guest_notes'; 
 
 // --- Global object to store notification timers ---
 // This is crucial for being able to cancel scheduled notifications.
@@ -11,6 +12,10 @@ const notificationTimers = {};
 
 // --- Global variable to store all tasks for filtering ---
 let allTasks = [];
+
+// NEW: Global variables for notes management
+let allNotes = []; // Stores all notes for the current user/guest
+let currentNoteId = null; // Tracks the ID of the currently active note
 
 // NEW: Set to store IDs of tasks whose subtasks are currently expanded
 const expandedTaskIds = new Set();
@@ -30,12 +35,19 @@ function saveGuestTasks(tasks) {
     localStorage.setItem(LOCAL_STORAGE_KEY_TASKS, JSON.stringify(tasks));
 }
 
-function getGuestNote() {
-    return localStorage.getItem(LOCAL_STORAGE_KEY_NOTES) || '';
+// NEW: Functions for guest notes (now an array of objects)
+function getGuestNotes() {
+    try {
+        const notes = localStorage.getItem(LOCAL_STORAGE_KEY_NOTES);
+        return notes ? JSON.parse(notes) : [];
+    } catch (e) {
+        console.error("Error parsing guest notes from localStorage:", e);
+        return [];
+    }
 }
 
-function saveGuestNote(content) {
-    localStorage.setItem(LOCAL_STORAGE_KEY_NOTES, content);
+function saveGuestNotes(notes) {
+    localStorage.setItem(LOCAL_STORAGE_KEY_NOTES, JSON.stringify(notes));
 }
 
 async function migrateGuestDataToSupabase() {
@@ -45,7 +57,7 @@ async function migrateGuestDataToSupabase() {
     }
 
     const guestTasks = getGuestTasks();
-    const guestNote = getGuestNote();
+    const guestNotes = getGuestNotes(); // Now gets an array
 
     if (guestTasks.length > 0) {
         console.log("Migrating guest tasks to Supabase...");
@@ -77,16 +89,24 @@ async function migrateGuestDataToSupabase() {
         }
     }
 
-    if (guestNote.length > 0) {
-        console.log("Migrating guest note to Supabase...");
-        const { error: noteError } = await supabase.from("notes").upsert(
-            { user_id: currentUser.id, content: guestNote, updated_at: new Date().toISOString() },
-            { onConflict: 'user_id' }
-        );
-        if (noteError) {
-            console.error("Error migrating guest note:", noteError.message);
+    // NEW: Migrate guest notes (now an array)
+    if (guestNotes.length > 0) {
+        console.log("Migrating guest notes to Supabase...");
+        const notesToInsert = guestNotes.map(note => ({
+            user_id: currentUser.id,
+            title: note.title,
+            content: note.content,
+            category: note.category || 'General',
+            created_at: note.created_at || new Date().toISOString(),
+            updated_at: note.updated_at || new Date().toISOString(),
+        }));
+
+        // Use insert for multiple notes, onConflict is not needed if IDs are unique
+        const { error: notesError } = await supabase.from("notes").insert(notesToInsert);
+        if (notesError) {
+            console.error("Error migrating guest notes:", notesError.message);
         } else {
-            console.log("Guest note migrated successfully.");
+            console.log("Guest notes migrated successfully.");
             localStorage.removeItem(LOCAL_STORAGE_KEY_NOTES);
         }
     }
@@ -172,14 +192,14 @@ async function checkUserAndLoadApp() {
     if (authSection) authSection.style.display = "block";
     if (appSection) appSection.style.display = "block";
 
-    const hasGuestData = getGuestTasks().length > 0 || getGuestNote().length > 0;
+    const hasGuestData = getGuestTasks().length > 0 || getGuestNotes().length > 0; // Check for guest notes
     if (guestModeMessage) {
         guestModeMessage.style.display = hasGuestData ? "block" : "none";
     }
     if (userEmailDisplay) userEmailDisplay.textContent = "Guest Mode";
   }
   await loadTasks();
-  await loadNote();
+  await loadNotes(); // NEW: Load multiple notes
   // NEW: Check and generate recurring tasks on app load
   if (currentUser) {
     await generateRecurringTasks();
@@ -369,47 +389,198 @@ async function deleteTask(id) {
     await updateTaskPositionsInDB();
 }
 
-async function saveNote(content) {
+// NEW: Functions for multiple notes
+async function loadNotes() {
+    const noteListContainer = document.getElementById("note-list-container");
+    if (!noteListContainer) { console.error("Note list container not found!"); return; }
+
+    let notes = [];
     if (currentUser) {
-        const { error } = await supabase.from("notes").upsert([
-            {
-                user_id: currentUser.id,
-                content: content,
-                updated_at: new Date().toISOString(),
-            },
-        ], { onConflict: 'user_id' });
-
-        if (error) console.error("Failed to save note to Supabase:", error.message);
-    } else {
-        saveGuestNote(content);
-        console.log("Saved note to Local Storage (Guest Mode).");
-    }
-}
-
-async function loadNote() {
-    const notesArea = document.getElementById("notes");
-    if (!notesArea) { console.error("Notes area element not found!"); return; }
-
-    let noteContent = '';
-    if (currentUser) {
-        const { data, error } = await supabase
+        const { data: supabaseNotes, error } = await supabase
             .from("notes")
-            .select("content")
+            .select("*")
             .eq("user_id", currentUser.id)
-            .single();
+            .order("updated_at", { ascending: false });
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
-            console.error("Failed to load note from Supabase:", error.message);
+        if (error) {
+            console.error("Failed to load notes from Supabase:", error.message);
             return;
         }
-        noteContent = data?.content || '';
-        console.log("Loaded note from Supabase:", noteContent);
+        notes = supabaseNotes;
+        console.log("Loaded notes from Supabase:", notes);
     } else {
-        noteContent = getGuestNote();
-        console.log("Loaded note from Local Storage (Guest Mode):", noteContent);
+        notes = getGuestNotes();
+        notes.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        console.log("Loaded notes from Local Storage (Guest Mode):", notes);
     }
-    notesArea.value = noteContent;
+    allNotes = notes; // Store all notes in the global variable
+
+    populateNoteCategoryFilter(allNotes); // Populate category filter for notes
+    filterNotes(); // Filter and render notes initially
+    
+    // Select the first note if available, or create a new one
+    if (allNotes.length > 0) {
+        selectNote(allNotes[0].id);
+    } else {
+        createNote(); // Create a default empty note if none exist
+    }
 }
+
+async function saveNote(noteId, title, content, category) {
+    if (!noteId) {
+        console.error("Cannot save note: noteId is missing.");
+        return;
+    }
+
+    const updated_at = new Date().toISOString();
+    let updates = { title, content, category, updated_at };
+
+    if (currentUser) {
+        const { error } = await supabase.from("notes").upsert(
+            { id: noteId, user_id: currentUser.id, ...updates },
+            { onConflict: 'id' } // Conflict on ID to update existing note
+        );
+        if (error) console.error("Failed to save note to Supabase:", error.message);
+    } else {
+        let guestNotes = getGuestNotes();
+        const noteIndex = guestNotes.findIndex(n => n.id === noteId);
+        if (noteIndex !== -1) {
+            guestNotes[noteIndex] = { ...guestNotes[noteIndex], ...updates };
+        } else {
+            // This case should ideally not happen if createNote is always called first
+            console.warn("Attempted to save non-existent guest note. Creating new one.");
+            guestNotes.push({ id: noteId, ...updates, created_at: updated_at });
+        }
+        saveGuestNotes(guestNotes);
+        console.log("Saved note to Local Storage (Guest Mode):", noteId);
+    }
+    // After saving, reload notes to update the list and re-select the current note
+    await loadNotes();
+    selectNote(noteId); // Re-select to ensure UI consistency
+}
+
+async function createNote() {
+    const newNote = {
+        id: crypto.randomUUID(), // Generate a unique ID for the new note
+        title: "New Note",
+        content: "",
+        category: "General",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    };
+
+    if (currentUser) {
+        const { data, error } = await supabase.from("notes").insert([
+            { user_id: currentUser.id, ...newNote }
+        ]).select();
+
+        if (error) {
+            console.error("Failed to create note in Supabase:", error.message);
+            return;
+        }
+        allNotes.unshift(data[0]); // Add to the beginning of the local array
+    } else {
+        allNotes.unshift(newNote); // Add to the beginning of the local array
+        saveGuestNotes(allNotes);
+    }
+    await loadNotes(); // Reload notes to update the list
+    selectNote(newNote.id); // Select the newly created note
+}
+
+async function deleteNote(noteId) {
+    showCustomConfirm("Are you sure you want to delete this note? This cannot be undone.", async () => {
+        if (currentUser) {
+            const { error } = await supabase
+                .from("notes")
+                .delete()
+                .eq("id", noteId)
+                .eq("user_id", currentUser.id);
+
+            if (error) console.error("Failed to delete note from Supabase:", error.message);
+        } else {
+            allNotes = allNotes.filter(note => note.id !== noteId);
+            saveGuestNotes(allNotes);
+        }
+        currentNoteId = null; // Clear current selection
+
+        await loadNotes(); // Reload notes to update the list and select a new one or create empty
+    });
+}
+
+function selectNote(noteId) {
+    const note = allNotes.find(n => n.id === noteId);
+    if (note) {
+        currentNoteId = noteId;
+        const noteTitleInput = document.getElementById("noteTitleInput");
+        const noteCategorySelect = document.getElementById("noteCategorySelect");
+        const deleteNoteButton = document.getElementById("deleteNoteButton");
+
+        noteTitleInput.value = note.title;
+        // Ensure category option exists before setting value
+        ensureOptionExists(noteCategorySelect, note.category);
+        noteCategorySelect.value = note.category || "General";
+        
+        // Set content in Quill editor
+        if (quill) {
+            quill.root.innerHTML = note.content;
+            quill.focus(); // Focus the editor
+        }
+
+        // Update selected class in the list
+        document.querySelectorAll('.note-list-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        const selectedItem = document.querySelector(`.note-list-item[data-note-id="${noteId}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
+        }
+
+        deleteNoteButton.disabled = false; // Enable delete button for selected note
+    } else {
+        // If selected note not found (e.g., deleted), clear editor and disable delete
+        currentNoteId = null;
+        document.getElementById("noteTitleInput").value = "";
+        document.getElementById("noteCategorySelect").value = "General";
+        if (quill) quill.root.innerHTML = "";
+        document.getElementById("deleteNoteButton").disabled = true;
+        document.querySelectorAll('.note-list-item').forEach(item => item.classList.remove('selected'));
+    }
+}
+
+function renderNoteList(notesToRender = allNotes) {
+    const noteListContainer = document.getElementById("note-list-container");
+    const ul = document.createElement("ul");
+
+    if (notesToRender.length === 0) {
+        noteListContainer.innerHTML = '<p class="empty-state">No notes found. Click "New Note" to create one!</p>';
+        return;
+    }
+
+    notesToRender.forEach(note => {
+        const li = document.createElement("li");
+        li.classList.add("note-list-item");
+        li.dataset.noteId = note.id;
+        if (note.id === currentNoteId) {
+            li.classList.add("selected");
+        }
+
+        const titleSpan = document.createElement("span");
+        titleSpan.classList.add("note-list-item-title");
+        titleSpan.textContent = note.title || "Untitled Note";
+        li.appendChild(titleSpan);
+
+        const dateSpan = document.createElement("span");
+        dateSpan.classList.add("note-list-item-date");
+        dateSpan.textContent = new Date(note.updated_at).toLocaleDateString();
+        li.appendChild(dateSpan);
+
+        li.addEventListener("click", () => selectNote(note.id));
+        ul.appendChild(li);
+    });
+    noteListContainer.innerHTML = ''; // Clear previous list
+    noteListContainer.appendChild(ul);
+}
+
 
 // --- Helper / UI Functions ---
 
@@ -836,7 +1007,7 @@ function createTaskElement(task) {
         }
         dueDateDisplay.textContent = `📅 ${dateString}` + (timeString ? ` ${timeString}` : '');
     } else {
-        dueDateDisplay.textContent = "📅 No due date";
+        dueDateDisplay.textContent = '';
     }
     li.appendChild(dueDateDisplay); // Appended after priorityLabel
 
@@ -966,20 +1137,17 @@ function createTaskElement(task) {
     const toggleSubtasksBtn = document.createElement("button");
     toggleSubtasksBtn.classList.add("toggle-subtasks-button");
     // Set initial icon based on expanded state
+    // Use a single SVG path that can be rotated by CSS
+    toggleSubtasksBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+            <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd" />
+        </svg>
+    `; // This is the down arrow SVG
+
     if (expandedTaskIds.has(task.id)) {
-        toggleSubtasksBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-                <path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clip-rule="evenodd" />
-            </svg>
-        `; // Up arrow when expanded
-        toggleSubtasksBtn.classList.add("expanded");
+        toggleSubtasksBtn.classList.add("expanded"); // Add 'expanded' class if it should be expanded
     } else {
-        toggleSubtasksBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-                <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd" />
-            </svg>
-        `; // Down arrow initially
-        toggleSubtasksBtn.classList.remove("expanded");
+        toggleSubtasksBtn.classList.remove("expanded"); // Ensure 'expanded' class is not present
     }
 
     toggleSubtasksBtn.title = "Toggle subtasks";
@@ -993,16 +1161,8 @@ function createTaskElement(task) {
             expandedTaskIds.add(task.id);
         }
 
+        // ONLY toggle the class, do NOT re-set innerHTML
         toggleSubtasksBtn.classList.toggle("expanded", !isExpanded);
-        toggleSubtasksBtn.innerHTML = isExpanded ? `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-                <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd" />
-            </svg>
-        ` : `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-                <path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clip-rule="evenodd" />
-            </svg>
-        `; // Up arrow when expanded
     });
     li.insertBefore(toggleSubtasksBtn, li.querySelector(".task-actions")); // Insert before task actions
 
@@ -1893,8 +2053,12 @@ function debounce(func, delay) {
     let timeout;
     return function(...args) {
         const context = this;
+        const later = () => {
+            timeout = null;
+            func.apply(context, args);
+        };
         clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), delay);
+        timeout = setTimeout(later, delay);
     };
 }
 
@@ -2204,6 +2368,60 @@ async function generateRecurringTasks() {
     await loadTasks(); // Reload tasks to show newly generated instances
 }
 
+// NEW: Quill editor instance
+let quill = null;
+
+// NEW: Notes filter and search
+const noteSearchInput = document.getElementById("noteSearchInput");
+const noteCategoryFilter = document.getElementById("noteCategoryFilter");
+const newNoteButton = document.getElementById("newNoteButton");
+const deleteNoteButton = document.getElementById("deleteNoteButton");
+const saveNoteButton = document.getElementById("saveNoteButton");
+const noteTitleInput = document.getElementById("noteTitleInput");
+const noteCategorySelect = document.getElementById("noteCategorySelect");
+
+function populateNoteCategoryFilter(notes) {
+    const categories = new Set(notes.map(note => note.category).filter(Boolean));
+    noteCategoryFilter.innerHTML = '<option value="all">All Categories</option>';
+    const defaultCategories = ["General", "Ideas", "Meeting", "Project", "Personal"];
+    defaultCategories.forEach(cat => {
+        if (!categories.has(cat)) {
+            categories.add(cat);
+        }
+    });
+
+    Array.from(categories).sort().forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        noteCategoryFilter.appendChild(option);
+    });
+
+    // Restore previous selection if it exists
+    const currentCategory = noteCategoryFilter.dataset.currentValue || 'all';
+    if (Array.from(noteCategoryFilter.options).some(opt => opt.value === currentCategory)) {
+        noteCategoryFilter.value = currentCategory;
+    } else {
+        noteCategoryFilter.value = 'all';
+    }
+}
+
+function filterNotes() {
+    const searchTerm = noteSearchInput.value.toLowerCase().trim();
+    const selectedCategory = noteCategoryFilter.value;
+
+    let filteredNotes = allNotes.filter(note => {
+        const titleMatch = note.title.toLowerCase().includes(searchTerm);
+        const contentMatch = note.content.toLowerCase().includes(searchTerm); // Search in HTML content too
+        const categoryMatch = selectedCategory === "all" || note.category === selectedCategory;
+        return (titleMatch || contentMatch) && categoryMatch;
+    });
+
+    // Sort by updated_at (newest first)
+    filteredNotes.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+    renderNoteList(filteredNotes);
+}
 
 // --- Main Init Function ---
 function init() {
@@ -2294,33 +2512,124 @@ function init() {
   const toggleNotesBtn = document.getElementById("toggleNotes");
   const notesSidebar = document.getElementById("notesSidebar");
   const closeNotesBtn = document.getElementById("closeNotes");
-  const notesInput = document.getElementById('notes');
+  // const notesInput = document.getElementById('notes'); // Old textarea, now replaced by Quill
 
   toggleNotesBtn?.addEventListener("click", () => {
     notesSidebar?.classList.add("open");
     if (toggleNotesBtn) toggleNotesBtn.style.display = "active";
     document.body.classList.add("notes-open");
-    loadNote(); // No need to render markdown on toggle, only on input
+    // loadNote(); // No longer needed here, loadNotes handles initial selection
   });
 
   closeNotesBtn?.addEventListener("click", () => {
     notesSidebar?.classList.remove("open");
     if (toggleNotesBtn) toggleNotesBtn.style.display = "block";
     document.body.classList.remove("notes-open");
-    if (notesInput) saveNote(notesInput.value);
+    // Save current note when closing sidebar
+    if (currentNoteId && quill) {
+        const title = noteTitleInput.value.trim() || "Untitled Note";
+        const content = quill.root.innerHTML;
+        const category = noteCategorySelect.value;
+        saveNote(currentNoteId, title, content, category);
+    }
   });
 
-  // Removed renderNotesMarkdown function as it was for a preview div not currently in HTML
-  // function renderNotesMarkdown() {
-  //   if (notesInput && notesOutput) {
-  //     const markdown = notesInput.value;
-  //     const html = marked.parse(markdown);
-  //     notesOutput.innerHTML = html;
-  //   }
-  // }
-  // notesInput?.addEventListener('input', renderNotesMarkdown); // No longer needed if no output div
-  notesInput?.addEventListener('blur', () => {
-      if (notesInput) saveNote(notesInput.value);
+  // NEW: Initialize Quill editor
+  quill = new Quill('#notes-editor', {
+    theme: 'snow', // Use 'snow' theme (clean, modern)
+    placeholder: 'Start writing your note...',
+    modules: {
+      toolbar: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'script': 'sub'}, { 'script': 'super' }],
+        [{ 'indent': '-1'}, { 'indent': '+1' }],
+        [{ 'direction': 'rtl' }],
+        ['blockquote', 'code-block'],
+        ['link'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'align': [] }],
+        ['clean'] // remove formatting button
+      ]
+    }
+  });
+
+  // NEW: Event listeners for notes functionality
+  newNoteButton?.addEventListener("click", createNote);
+  deleteNoteButton?.addEventListener("click", () => deleteNote(currentNoteId));
+  saveNoteButton?.addEventListener("click", () => {
+      if (currentNoteId && quill) {
+          const title = noteTitleInput.value.trim() || "Untitled Note";
+          const content = quill.root.innerHTML;
+          const category = noteCategorySelect.value;
+          saveNote(currentNoteId, title, content, category);
+          showCustomAlert("Note saved!");
+      } else {
+          showCustomAlert("No note selected or editor not ready.");
+      }
+  });
+
+  // Auto-save on title/category change and editor blur
+  noteTitleInput?.addEventListener('blur', () => {
+      if (currentNoteId && quill) {
+          const title = noteTitleInput.value.trim() || "Untitled Note";
+          const content = quill.root.innerHTML;
+          const category = noteCategorySelect.value;
+          saveNote(currentNoteId, title, content, category);
+      }
+  });
+  noteCategorySelect?.addEventListener('change', () => {
+      if (currentNoteId && quill) {
+          const title = noteTitleInput.value.trim() || "Untitled Note";
+          const content = quill.root.innerHTML;
+          const category = noteCategorySelect.value;
+          saveNote(currentNoteId, title, content, category);
+      }
+  });
+  quill.on('text-change', debounce(() => {
+      if (currentNoteId) {
+          const title = noteTitleInput.value.trim() || "Untitled Note";
+          const content = quill.root.innerHTML;
+          const category = noteCategorySelect.value;
+          saveNote(currentNoteId, title, content, category);
+      }
+  }, 1000)); // Save 1 second after last text change
+
+  // NEW: Note search and category filter listeners
+  noteSearchInput?.addEventListener("input", debounce(filterNotes, 300));
+  noteCategoryFilter?.addEventListener("change", filterNotes);
+
+  // NEW: Custom category for notes
+  noteCategorySelect?.addEventListener("change", () => {
+    if (noteCategorySelect.value === "__custom__") {
+      showCustomPrompt("Enter new note category name:", (newCategory) => {
+          if (newCategory && newCategory.trim()) {
+            const trimmedCategory = newCategory.trim();
+            const exists = Array.from(noteCategorySelect.options).some(
+              option => option.value.toLowerCase() === trimmedCategory.toLowerCase()
+            );
+            if (!exists) {
+              const newOption = document.createElement("option");
+              newOption.value = trimmedCategory;
+              newOption.textContent = trimmedCategory;
+              noteCategorySelect.insertBefore(newOption, noteCategorySelect.lastElementChild);
+              noteCategorySelect.value = trimmedCategory;
+              // Save the current note with the new category
+              if (currentNoteId && quill) {
+                const title = noteTitleInput.value.trim() || "Untitled Note";
+                const content = quill.root.innerHTML;
+                saveNote(currentNoteId, title, content, trimmedCategory);
+              }
+            } else {
+              showCustomAlert("That category already exists.");
+              noteCategorySelect.value = "General"; // Revert to default
+            }
+          } else {
+            noteCategorySelect.value = "General"; // Revert to default
+          }
+      }, "General");
+    }
   });
 
 
