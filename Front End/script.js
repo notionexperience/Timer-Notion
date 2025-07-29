@@ -61,6 +61,11 @@ async function migrateGuestDataToSupabase() {
             notification_time: task.notification_time || null,
             subtasks: task.subtasks || [], // Include subtasks
             attachments: task.attachments || [], // Include attachments
+            // NEW: Recurrence fields
+            recurrence_type: task.recurrence_type || 'none',
+            recurrence_details: task.recurrence_details || {},
+            original_task_id: task.original_task_id || null, // For instances of recurring tasks
+            next_occurrence_date: task.next_occurrence_date || null, // When the next instance should be created
         }));
 
         const { error: tasksError } = await supabase.from("tasks").insert(tasksToInsert, { ignoreDuplicates: true });
@@ -175,6 +180,10 @@ async function checkUserAndLoadApp() {
   }
   await loadTasks();
   await loadNote();
+  // NEW: Check and generate recurring tasks on app load
+  if (currentUser) {
+    await generateRecurringTasks();
+  }
 }
 
 // --- Data Persistence Functions (Conditional Logic) ---
@@ -185,10 +194,10 @@ async function loadTasks() {
 
     let tasks = [];
     if (currentUser) {
-        // Fetch tasks, and include subtasks and attachments using the 'jsonb' columns
+        // Fetch tasks, and include subtasks, attachments, and recurrence fields
         const { data: supabaseTasks, error } = await supabase
             .from("tasks")
-            .select("*, subtasks, attachments") // Select the jsonb columns
+            .select("*, subtasks, attachments, recurrence_type, recurrence_details, original_task_id, next_occurrence_date")
             .eq("user_id", currentUser.id)
             .order("position", { ascending: true })
             .order("created_at", { ascending: false });
@@ -236,12 +245,18 @@ async function loadTasks() {
     });
 }
 
-// Modified addTask to accept full ISO date-time string
-async function addTask(content, category = "Personal", priority = "Medium", dueDateTime = null, notificationTime = null, attachments = []) {
+// Modified addTask to accept full ISO date-time string and recurrence info
+async function addTask(content, category = "Personal", priority = "Medium", dueDateTime = null, notificationTime = null, attachments = [], recurrenceType = 'none', recurrenceDetails = {}) {
     let newTask = null;
     const taskList = document.getElementById("taskList");
     const lastTaskPosition = taskList.children.length > 0 ?
         parseInt(taskList.children[taskList.children.length - 1].dataset.position) + 1 : 0;
+
+    // Calculate next_occurrence_date if it's a recurring task
+    let nextOccurrenceDate = null;
+    if (recurrenceType !== 'none' && dueDateTime) {
+        nextOccurrenceDate = calculateNextOccurrence(new Date(dueDateTime), recurrenceType, recurrenceDetails).toISOString();
+    }
 
     if (currentUser) {
         const { data, error } = await supabase.from("tasks").insert([
@@ -256,6 +271,10 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
                 notification_time: notificationTime, // This is expected to be minutes offset
                 subtasks: [], // Initialize with an empty array for subtasks (Supabase jsonb)
                 attachments: attachments, // Store attachments (Supabase jsonb)
+                recurrence_type: recurrenceType, // NEW
+                recurrence_details: recurrenceDetails, // NEW
+                original_task_id: null, // This is an original recurring task, not an instance
+                next_occurrence_date: nextOccurrenceDate, // NEW
             },
         ]).select();
 
@@ -279,6 +298,10 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
             notification_time: notificationTime, // This is expected to be minutes offset
             subtasks: [], // Initialize with an empty array for subtasks
             attachments: attachments, // Store attachments
+            recurrence_type: recurrenceType, // NEW
+            recurrence_details: recurrenceDetails, // NEW
+            original_task_id: null, // This is an original recurring task, not an instance
+            next_occurrence_date: nextOccurrenceDate, // NEW
         };
         guestTasks.push(newTask);
         saveGuestTasks(guestTasks);
@@ -759,6 +782,31 @@ function createTaskElement(task) {
         subtaskProgressDisplay.textContent = ``; // No display if no subtasks
     }
     li.appendChild(subtaskProgressDisplay);
+
+    // NEW: Recurrence Label Display
+    const recurrenceLabel = document.createElement("span");
+    recurrenceLabel.classList.add("recurrence-label");
+    if (task.recurrence_type && task.recurrence_type !== 'none') {
+        let recurrenceText = '';
+        switch (task.recurrence_type) {
+            case 'daily': recurrenceText = 'Daily'; break;
+            case 'weekly':
+                const days = task.recurrence_details.daysOfWeek || [];
+                recurrenceText = `Weekly (${days.map(d => d.substring(0, 3)).join(', ')})`;
+                break;
+            case 'monthly':
+                recurrenceText = `Monthly (day ${task.recurrence_details.dayOfMonth || '?'})`;
+                break;
+            case 'yearly':
+                recurrenceText = `Yearly (on ${new Date(task.recurrence_details.monthAndDay || '2000-01-01').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })})`;
+                break;
+        }
+        recurrenceLabel.textContent = `🔁 ${recurrenceText}`;
+        recurrenceLabel.title = `Repeats: ${recurrenceText}`;
+    } else {
+        recurrenceLabel.textContent = '';
+    }
+    li.appendChild(recurrenceLabel);
     
     // Notification Time Display
     const notificationTimeDisplay = document.createElement("span");
@@ -1174,6 +1222,10 @@ async function addTaskFromInput() {
     const dueTimeInput = document.getElementById("dueTime"); // Updated ID
     const newAttachmentsDisplay = document.getElementById("newAttachmentsDisplay"); // Get the display area
 
+    // NEW: Recurrence fields
+    const recurrenceTypeSelect = document.getElementById("recurrenceType");
+    const recurrenceDetailsContainer = document.getElementById("recurrenceDetails");
+
     const taskText = taskInput.value.trim();
     if (!taskText) {
         showCustomAlert("Please enter a task description.");
@@ -1201,6 +1253,13 @@ async function addTaskFromInput() {
         }
     }
 
+    // NEW: Get recurrence data
+    const recurrenceType = recurrenceTypeSelect.value;
+    let recurrenceDetails = {};
+    if (recurrenceType !== 'none') {
+        recurrenceDetails = getRecurrenceDetails(recurrenceType, recurrenceDetailsContainer);
+    }
+
     // Handle attachments for new task using newSelectedFiles
     const attachments = [];
     for (const file of newSelectedFiles) {
@@ -1210,7 +1269,7 @@ async function addTaskFromInput() {
         }
     }
 
-    const newTask = await addTask(taskText, category, priority, dueDateTime, null, attachments); // Pass attachments
+    const newTask = await addTask(taskText, category, priority, dueDateTime, null, attachments, recurrenceType, recurrenceDetails); // Pass attachments and recurrence
 
     if (!newTask) return;
 
@@ -1226,6 +1285,8 @@ async function addTaskFromInput() {
     prioritySelect.value = "Medium";
     dueDateInput.value = "";
     dueTimeInput.value = "";
+    recurrenceTypeSelect.value = "none"; // Reset recurrence
+    renderRecurrenceDetails('none', recurrenceDetailsContainer); // Clear recurrence details display
     
     // Clear selected files and update display for new task form
     newSelectedFiles = []; 
@@ -1347,6 +1408,11 @@ const editNotificationOffset = document.getElementById("editNotificationOffset")
 const editAttachmentInput = document.getElementById("editAttachmentInput"); // NEW attachment input for edit modal
 const currentAttachmentsDisplay = document.getElementById("currentAttachmentsDisplay"); // NEW attachments display container
 
+// NEW: Recurrence fields for Edit Task Modal
+const editRecurrenceTypeSelect = document.getElementById("editRecurrenceType");
+const editRecurrenceDetailsContainer = document.getElementById("editRecurrenceDetails");
+
+
 let attachmentsToKeep = []; // Global to track attachments in edit modal
 
 function showEditModal(task) {
@@ -1397,6 +1463,11 @@ function showEditModal(task) {
     // Set notification offset
     editNotificationOffset.value = task.notification_time !== null ? task.notification_time : '';
 
+    // NEW: Set recurrence type and details for edit modal
+    editRecurrenceTypeSelect.value = task.recurrence_type || 'none';
+    renderRecurrenceDetails(editRecurrenceTypeSelect.value, editRecurrenceDetailsContainer, task.recurrence_details);
+
+
     // Handle attachments in edit modal
     attachmentsToKeep = [...(task.attachments || [])]; // Initialize with existing attachments
     renderAttachments(attachmentsToKeep, currentAttachmentsDisplay, task.id, true); // Render existing, allow removal
@@ -1433,6 +1504,13 @@ async function saveEditedTask() {
     const dueDate = editDueDate.value; // YYYY-MM-DD string
     const dueTime = editDueTime.value; // HH:MM string
     const notificationOffset = editNotificationOffset.value ? parseInt(editNotificationOffset.value, 10) : null;
+
+    // NEW: Get recurrence data from edit modal
+    const recurrenceType = editRecurrenceTypeSelect.value;
+    let recurrenceDetails = {};
+    if (recurrenceType !== 'none') {
+        recurrenceDetails = getRecurrenceDetails(recurrenceType, editRecurrenceDetailsContainer);
+    }
 
     if (!content) {
         showCustomAlert("Task content cannot be empty.");
@@ -1475,7 +1553,20 @@ async function saveEditedTask() {
         due_date: updatedDueDateTime, // This will be null if no date is set
         notification_time: notificationOffset, // This will be null if no offset is set
         attachments: finalAttachments, // Update with the combined attachments
+        recurrence_type: recurrenceType, // NEW
+        recurrence_details: recurrenceDetails, // NEW
     };
+
+    // If recurrence type changed or due date changed, recalculate next_occurrence_date
+    const currentTaskInAllTasks = allTasks.find(t => t.id == taskId);
+    if (currentTaskInAllTasks && (currentTaskInAllTasks.recurrence_type !== recurrenceType || currentTaskInAllTasks.due_date !== updatedDueDateTime)) {
+        if (recurrenceType !== 'none' && updatedDueDateTime) {
+            updates.next_occurrence_date = calculateNextOccurrence(new Date(updatedDueDateTime), recurrenceType, recurrenceDetails).toISOString();
+        } else {
+            updates.next_occurrence_date = null;
+        }
+    }
+
 
     try {
         await updateTask(taskId, updates); // Use the existing updateTask function
@@ -1816,6 +1907,303 @@ function clearAllFilters() {
     filterTasks();
 }
 
+// --- NEW: Recurrence Logic ---
+
+/**
+ * Renders the appropriate recurrence details UI based on the selected type.
+ * @param {string} type The recurrence type ('none', 'daily', 'weekly', 'monthly', 'yearly').
+ * @param {HTMLElement} container The DOM element to render details into (e.g., recurrenceDetails, editRecurrenceDetails).
+ * @param {Object} [currentDetails={}] Optional: Current recurrence details to pre-fill inputs.
+ */
+function renderRecurrenceDetails(type, container, currentDetails = {}) {
+    container.innerHTML = ''; // Clear previous content
+    container.style.display = 'none'; // Hide by default
+
+    if (type === 'none') {
+        return;
+    }
+
+    container.style.display = 'flex'; // Show container if recurrence is active
+
+    let html = '';
+    switch (type) {
+        case 'daily':
+            html = `
+                <label for="${container.id}-endDate">Ends:</label>
+                <input type="date" id="${container.id}-endDate" class="date-input" value="${currentDetails.endDate || ''}">
+            `;
+            break;
+        case 'weekly':
+            const daysOfWeek = [
+                { value: 'sunday', label: 'Sun' },
+                { value: 'monday', label: 'Mon' },
+                { value: 'tuesday', label: 'Tue' },
+                { value: 'wednesday', label: 'Wed' },
+                { value: 'thursday', label: 'Thu' },
+                { value: 'friday', label: 'Fri' },
+                { value: 'saturday', label: 'Sat' },
+            ];
+            html = `
+                <label>Repeat on:</label>
+                <div class="checkbox-group">
+                    ${daysOfWeek.map(day => `
+                        <label>
+                            <input type="checkbox" data-day="${day.value}" ${currentDetails.daysOfWeek && currentDetails.daysOfWeek.includes(day.value) ? 'checked' : ''}>
+                            ${day.label}
+                        </label>
+                    `).join('')}
+                </div>
+                <label for="${container.id}-endDate">Ends:</label>
+                <input type="date" id="${container.id}-endDate" class="date-input" value="${currentDetails.endDate || ''}">
+            `;
+            break;
+        case 'monthly':
+            html = `
+                <label for="${container.id}-dayOfMonth">Day of month:</label>
+                <input type="number" id="${container.id}-dayOfMonth" class="input" min="1" max="31" value="${currentDetails.dayOfMonth || ''}">
+                <label for="${container.id}-endDate">Ends:</label>
+                <input type="date" id="${container.id}-endDate" class="date-input" value="${currentDetails.endDate || ''}">
+            `;
+            break;
+        case 'yearly':
+            html = `
+                <label for="${container.id}-monthAndDay">On:</label>
+                <input type="date" id="${container.id}-monthAndDay" class="date-input" value="${currentDetails.monthAndDay ? currentDetails.monthAndDay.substring(0, 10) : ''}">
+                <label for="${container.id}-endDate">Ends:</label>
+                <input type="date" id="${container.id}-endDate" class="date-input" value="${currentDetails.endDate || ''}">
+            `;
+            break;
+    }
+    container.innerHTML = html;
+}
+
+/**
+ * Extracts recurrence details from the UI.
+ * @param {string} type The recurrence type.
+ * @param {HTMLElement} container The DOM element containing the recurrence details.
+ * @returns {Object} An object with recurrence details.
+ */
+function getRecurrenceDetails(type, container) {
+    const details = {};
+    const endDateInput = container.querySelector(`#${container.id}-endDate`);
+    if (endDateInput && endDateInput.value) {
+        details.endDate = endDateInput.value;
+    }
+
+    switch (type) {
+        case 'weekly':
+            details.daysOfWeek = Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => cb.dataset.day);
+            break;
+        case 'monthly':
+            const dayOfMonthInput = container.querySelector(`#${container.id}-dayOfMonth`);
+            if (dayOfMonthInput && dayOfMonthInput.value) {
+                details.dayOfMonth = parseInt(dayOfMonthInput.value, 10);
+            }
+            break;
+        case 'yearly':
+            const monthAndDayInput = container.querySelector(`#${container.id}-monthAndDay`);
+            if (monthAndDayInput && monthAndDayInput.value) {
+                details.monthAndDay = monthAndDayInput.value; // YYYY-MM-DD format
+            }
+            break;
+    }
+    return details;
+}
+
+/**
+ * Calculates the next occurrence date for a recurring task.
+ * @param {Date} lastOccurrenceDate The date of the last occurrence (or initial due date).
+ * @param {string} recurrenceType The type of recurrence ('daily', 'weekly', 'monthly', 'yearly').
+ * @param {Object} recurrenceDetails Details like daysOfWeek, dayOfMonth, monthAndDay.
+ * @returns {Date|null} The next occurrence date, or null if no further occurrences.
+ */
+function calculateNextOccurrence(lastOccurrenceDate, recurrenceType, recurrenceDetails) {
+    let nextDate = new Date(lastOccurrenceDate);
+    const endDate = recurrenceDetails.endDate ? new Date(recurrenceDetails.endDate) : null;
+    if (endDate) endDate.setHours(23, 59, 59, 999); // Set to end of day for comparison
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today to start of day
+
+    switch (recurrenceType) {
+        case 'daily':
+            nextDate.setDate(nextDate.getDate() + 1);
+            break;
+        case 'weekly':
+            const daysOfWeek = recurrenceDetails.daysOfWeek || [];
+            if (daysOfWeek.length === 0) return null; // Cannot recur weekly without specific days
+
+            let foundNextDay = false;
+            for (let i = 1; i <= 7; i++) { // Check up to 7 days in the future
+                const potentialNextDate = new Date(lastOccurrenceDate);
+                potentialNextDate.setDate(potentialNextDate.getDate() + i);
+                const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][potentialNextDate.getDay()];
+                if (daysOfWeek.includes(dayName)) {
+                    nextDate = potentialNextDate;
+                    foundNextDay = true;
+                    break;
+                }
+            }
+            if (!foundNextDay) {
+                // If no next day found within the current week cycle, advance to next week and find first day
+                nextDate.setDate(nextDate.getDate() + (7 - nextDate.getDay()) + (new Date().getDay() - nextDate.getDay())); // Move to next Sunday, then adjust
+                for (let i = 0; i < 7; i++) {
+                    const potentialNextDate = new Date(nextDate);
+                    potentialNextDate.setDate(potentialNextDate.getDate() + i);
+                    const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][potentialNextDate.getDay()];
+                    if (daysOfWeek.includes(dayName)) {
+                        nextDate = potentialNextDate;
+                        break;
+                    }
+                }
+            }
+
+            // If the calculated nextDate is still before or on lastOccurrenceDate, advance it
+            // This handles cases where lastOccurrenceDate was already a recurrence day
+            if (nextDate.getTime() <= lastOccurrenceDate.getTime()) {
+                let advanced = false;
+                for (let i = 1; i <= 7; i++) {
+                    const potentialNextDate = new Date(lastOccurrenceDate);
+                    potentialNextDate.setDate(potentialNextDate.getDate() + i);
+                    const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][potentialNextDate.getDay()];
+                    if (daysOfWeek.includes(dayName)) {
+                        if (potentialNextDate.getTime() > lastOccurrenceDate.getTime()) {
+                            nextDate = potentialNextDate;
+                            advanced = true;
+                            break;
+                        }
+                    }
+                }
+                if (!advanced) { // Fallback if somehow still stuck (e.g., only one day selected and it's today)
+                    nextDate.setDate(lastOccurrenceDate.getDate() + 7); // Just go to next week on the same day
+                }
+            }
+            break;
+        case 'monthly':
+            const dayOfMonth = recurrenceDetails.dayOfMonth;
+            if (!dayOfMonth) return null;
+            
+            // Try setting to the specified day of the *current* month
+            nextDate.setDate(dayOfMonth);
+            if (nextDate.getTime() <= lastOccurrenceDate.getTime()) {
+                // If it's already past the day of the month, move to next month
+                nextDate.setMonth(nextDate.getMonth() + 1);
+                nextDate.setDate(dayOfMonth); // Re-set day in case month change affected it (e.g., Feb 30)
+            }
+            // Handle months with fewer days (e.g., setting day 31 in February)
+            if (nextDate.getDate() !== dayOfMonth) {
+                nextDate.setDate(0); // Set to last day of previous month, then add 1 to get to first day of next month
+                nextDate.setMonth(nextDate.getMonth() + 1);
+                nextDate.setDate(dayOfMonth);
+            }
+            break;
+        case 'yearly':
+            const monthAndDay = recurrenceDetails.monthAndDay; // YYYY-MM-DD
+            if (!monthAndDay) return null;
+            const [year, month, day] = monthAndDay.split('-').map(Number);
+            
+            nextDate.setMonth(month - 1); // Month is 0-indexed
+            nextDate.setDate(day);
+            
+            if (nextDate.getTime() <= lastOccurrenceDate.getTime()) {
+                nextDate.setFullYear(nextDate.getFullYear() + 1);
+            }
+            break;
+    }
+
+    // Ensure the time component is preserved from the original due date
+    nextDate.setHours(lastOccurrenceDate.getHours(), lastOccurrenceDate.getMinutes(), lastOccurrenceDate.getSeconds(), lastOccurrenceDate.getMilliseconds());
+
+    // Check against end date
+    if (endDate && nextDate.getTime() > endDate.getTime()) {
+        return null; // No more occurrences after end date
+    }
+
+    return nextDate;
+}
+
+/**
+ * Generates new instances of recurring tasks that are due.
+ * This function should be called on app load.
+ */
+async function generateRecurringTasks() {
+    if (!currentUser) return; // Only for logged-in users
+
+    console.log("Checking for recurring tasks to generate...");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+
+    const { data: recurringTasks, error } = await supabase
+        .from("tasks")
+        .select("*, subtasks, attachments, recurrence_type, recurrence_details, original_task_id, next_occurrence_date")
+        .eq("user_id", currentUser.id)
+        .eq("is_done", false) // Only consider active recurring tasks
+        .not("recurrence_type", "eq", "none"); // Only recurring tasks
+
+    if (error) {
+        console.error("Error fetching recurring tasks:", error.message);
+        return;
+    }
+
+    for (const task of recurringTasks) {
+        if (task.next_occurrence_date) {
+            const nextOccurrence = new Date(task.next_occurrence_date);
+            nextOccurrence.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
+
+            if (nextOccurrence.getTime() <= today.getTime()) {
+                console.log(`Generating new instance for recurring task: "${task.content}" (ID: ${task.id})`);
+
+                // Create a new task instance
+                const newInstance = {
+                    user_id: currentUser.id,
+                    content: task.content,
+                    is_done: false,
+                    category: task.category,
+                    priority: task.priority,
+                    // Set due_date of the new instance to the calculated next occurrence date
+                    due_date: nextOccurrence.toISOString(), 
+                    position: 0, // New tasks usually go to top or can be re-sorted
+                    notification_time: task.notification_time,
+                    subtasks: task.subtasks ? task.subtasks.map(st => ({ ...st, is_done: false })) : [], // Reset subtasks completion
+                    attachments: task.attachments || [], // Attachments are copied
+                    recurrence_type: 'none', // Instances are not recurring themselves
+                    recurrence_details: {},
+                    original_task_id: task.id, // Link to the original recurring task
+                    next_occurrence_date: null, // Instances don't have a next occurrence
+                };
+
+                const { error: insertError } = await supabase.from("tasks").insert([newInstance]);
+                if (insertError) {
+                    console.error("Error creating recurring task instance:", insertError.message);
+                    continue;
+                }
+
+                // Calculate the next recurrence date for the original recurring task
+                const newNextOccurrenceDate = calculateNextOccurrence(new Date(task.next_occurrence_date), task.recurrence_type, task.recurrence_details);
+
+                // Update the original recurring task's next_occurrence_date
+                const updatePayload = {
+                    next_occurrence_date: newNextOccurrenceDate ? newNextOccurrenceDate.toISOString() : null,
+                    // Optionally, mark the original recurring task as done for this cycle, if that's the desired behavior.
+                    // For now, we'll just update its next occurrence date.
+                    // is_done: true // If you want the "parent" task to be marked done after generating an instance
+                };
+                const { error: updateError } = await supabase
+                    .from("tasks")
+                    .update(updatePayload)
+                    .eq("id", task.id)
+                    .eq("user_id", currentUser.id);
+
+                if (updateError) {
+                    console.error("Error updating original recurring task:", updateError.message);
+                }
+            }
+        }
+    }
+    await loadTasks(); // Reload tasks to show newly generated instances
+}
+
 
 // --- Main Init Function ---
 function init() {
@@ -1861,11 +2249,21 @@ function init() {
   const triggerNewAttachmentInput = document.getElementById("triggerNewAttachmentInput");
   const newAttachmentsDisplay = document.getElementById("newAttachmentsDisplay");
 
+  // NEW: Recurrence elements for Add Task
+  const recurrenceTypeSelect = document.getElementById("recurrenceType");
+  const recurrenceDetailsContainer = document.getElementById("recurrenceDetails");
 
   if (addTaskButton) addTaskButton.addEventListener("click", addTaskFromInput);
   if (taskInput) taskInput.addEventListener("keypress", e => {
     if (e.key === "Enter") addTaskFromInput();
   });
+
+  // NEW: Event listener for recurrence type change in Add Task form
+  if (recurrenceTypeSelect) {
+      recurrenceTypeSelect.addEventListener("change", () => {
+          renderRecurrenceDetails(recurrenceTypeSelect.value, recurrenceDetailsContainer);
+      });
+  }
 
   // NEW: Event listener for the "Add Attachment" button
   if (triggerNewAttachmentInput) {
@@ -2103,6 +2501,13 @@ function init() {
       }, "Medium");
     }
   });
+
+  // NEW: Event listener for recurrence type change in Edit Task modal
+  if (editRecurrenceTypeSelect) {
+      editRecurrenceTypeSelect.addEventListener("change", () => {
+          renderRecurrenceDetails(editRecurrenceTypeSelect.value, editRecurrenceDetailsContainer);
+      });
+  }
 
   // --- Search Input Event Listener ---
   const searchInput = document.getElementById("searchInput");

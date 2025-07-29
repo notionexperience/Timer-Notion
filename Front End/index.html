@@ -104,6 +104,23 @@
                     <input type="time" id="dueTime" class="time-input" title="Set due time" />
                 </div>
             </div>
+            <!-- NEW: Recurrence settings for Add Task -->
+            <div class="task-details-row recurrence-row">
+                <div class="input-field">
+                    <label for="recurrenceType">Repeats:</label>
+                    <select id="recurrenceType" class="select-box">
+                        <option value="none">Never</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <div id="recurrenceDetails" class="input-field recurrence-details-container" style="display: none;">
+                    <!-- Content will be dynamically loaded here based on recurrenceType -->
+                </div>
+            </div>
+            <!-- END NEW: Recurrence settings for Add Task -->
         </div>
     </div> 
     
@@ -226,6 +243,23 @@
               <input type="number" id="editNotificationOffset" class="input" min="0" placeholder="e.g. 15">
           </div>
       </div>
+      <!-- NEW: Recurrence settings for Edit Task Modal -->
+      <div class="task-details-row recurrence-row">
+          <div class="input-field">
+              <label for="editRecurrenceType">Repeats:</label>
+              <select id="editRecurrenceType" class="select-box">
+                  <option value="none">Never</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+              </select>
+          </div>
+          <div id="editRecurrenceDetails" class="input-field recurrence-details-container" style="display: none;">
+              <!-- Content will be dynamically loaded here based on recurrenceType -->
+          </div>
+      </div>
+      <!-- END NEW: Recurrence settings for Edit Task Modal -->
       <!-- NEW: Attachment input for Edit Task Modal -->
       <div class="input-field attachment-input-group">
           <label for="editAttachmentInput">Attachments:</label>
