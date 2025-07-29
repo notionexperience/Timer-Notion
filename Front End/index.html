@@ -27,6 +27,12 @@
           <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
         </svg>
       </button>
+      <!-- NEW: Goals Toggle Button -->
+      <button id="toggleGoals" class="nav-button goals-toggle" aria-label="Toggle goals section">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+          <path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 4.796l4.393 4.393a.75.75 0 1 1-1.06 1.06l-4.393-4.393A8.25 8.25 0 0 1 2.25 10.5Z" clip-rule="evenodd" />
+        </svg>
+      </button>
       <span id="userEmailDisplay" class="user-email">Guest Mode</span>
       <div id="auth-nav-items">
         <input type="email" id="emailInput" placeholder="Email" class="nav-input" />
@@ -123,6 +129,17 @@
                 </div>
             </div>
             <!-- END NEW: Recurrence settings for Add Task -->
+            <!-- NEW: Goal selection for Add Task -->
+            <div class="task-details-row goal-row">
+                <div class="input-field">
+                    <label for="goalSelect">Link to Goal:</label>
+                    <select id="goalSelect" class="select-box">
+                        <option value="none">No Goal</option>
+                        <!-- Options populated by script.js -->
+                    </select>
+                </div>
+            </div>
+            <!-- END NEW: Goal selection for Add Task -->
         </div>
     </div> 
     
@@ -157,8 +174,16 @@
                     <option value="alphabeticalDesc">Alphabetical (Z-A)</option>
                 </select>
             </div>
-
-
+            <!-- NEW: Goal Filter for Tasks -->
+            <div class="input-field">
+                <label for="goalFilter">Goal:</label>
+                <select id="goalFilter" class="select-box">
+                    <option value="all">All Goals</option>
+                    <option value="no-goal">No Goal</option>
+                    <!-- Options populated by script.js -->
+                </select>
+            </div>
+            <!-- END NEW: Goal Filter for Tasks -->
 
             <button id="clearFiltersButton" class="button button-secondary">Clear Filters</button>            
             <div class="input-field checkbox-field">
@@ -168,6 +193,39 @@
         </div>
     </section>
     <!-- END NEW: Filter and Sort Section -->
+
+    <!-- NEW: Goals Section -->
+    <section id="goalsSection" class="task-add-section" style="display: none;">
+        <div class="goals-header">
+            <h2 class="goals-title"><span class="circle-icon">🎯</span> Goals</h2>
+            <button id="addNewGoalButton" class="button">Add New Goal</button>
+        </div>
+        <div class="goals-controls">
+            <input type="text" id="goalSearchInput" placeholder="Search goals..." class="input goal-search-input" aria-label="Search goals">
+            <div class="input-field">
+                <label for="goalStatusFilter" class="sr-only">Filter by Status:</label>
+                <select id="goalStatusFilter" class="select-box">
+                    <option value="all">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                    <option value="archived">Archived</option>
+                </select>
+            </div>
+            <div class="input-field">
+                <label for="goalSortOrder" class="sr-only">Sort Goals By:</label>
+                <select id="goalSortOrder" class="select-box">
+                    <option value="dueDateAsc">Due Date (Earliest First)</option>
+                    <option value="creationDateDesc">Creation Date (Newest First)</option>
+                    <option value="alphabeticalAsc">Alphabetical (A-Z)</option>
+                </select>
+            </div>
+        </div>
+        <ul id="goalList" class="goal-list">
+            <!-- Goals will be rendered here by JavaScript -->
+        </ul>
+        <p id="noGoalsMessage" class="empty-state" style="display: none;">No goals found. Click "Add New Goal" to create one!</p>
+    </section>
+    <!-- END NEW: Goals Section -->
 
     <div id="taskCountToday" class="task-counter-line">
         <div class="task-counter-content">
@@ -312,6 +370,17 @@
           <div id="currentAttachmentsDisplay" class="attachments-display"></div>
       </div>
       <!-- END NEW: Attachment input for Edit Task Modal -->
+      <!-- NEW: Goal selection for Edit Task Modal -->
+      <div class="task-details-row goal-row">
+          <div class="input-field">
+              <label for="editGoalSelect">Link to Goal:</label>
+              <select id="editGoalSelect" class="select-box">
+                  <option value="none">No Goal</option>
+                  <!-- Options populated by script.js -->
+              </select>
+          </div>
+      </div>
+      <!-- END NEW: Goal selection for Edit Task Modal -->
       <div class="modal-buttons"> 
         <button id="saveEditButton" class="button">Save</button>
         <button id="cancelEditButton" class="button button-secondary">Cancel</button>
@@ -319,6 +388,46 @@
     </div>
   </div>
   <!-- END NEW: Task Edit Modal -->
+
+  <!-- NEW: Goal Add/Edit Modal -->
+  <div id="goalModal" class="modal">
+    <div class="modal-content">
+      <h2><span id="goalModalTitle">Add New Goal</span></h2>
+      <input type="hidden" id="goalId">
+      <div class="input-field">
+        <label for="goalTitle">Goal Title:</label>
+        <input type="text" id="goalTitle" class="input" placeholder="e.g., Learn a new language">
+      </div>
+      <div class="input-field">
+        <label for="goalDescription">Description:</label>
+        <textarea id="goalDescription" class="input" placeholder="Detailed description of your goal..."></textarea>
+      </div>
+      <div class="task-details-row">
+          <div class="input-field">
+              <label for="goalStartDate">Start Date:</label>
+              <input type="date" id="goalStartDate" class="date-input">
+          </div>
+          <div class="input-field">
+              <label for="goalDueDate">Due Date:</label>
+              <input type="date" id="goalDueDate" class="date-input">
+          </div>
+          <div class="input-field">
+              <label for="goalStatus">Status:</label>
+              <select id="goalStatus" class="select-box">
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="archived">Archived</option>
+              </select>
+          </div>
+      </div>
+      <div class="modal-buttons">
+        <button id="saveGoalButton" class="button">Save Goal</button>
+        <button id="cancelGoalButton" class="button button-secondary">Cancel</button>
+      </div>
+      <button id="closeGoalModal" class="close-button" aria-label="Close goal modal">X</button>
+    </div>
+  </div>
+  <!-- END NEW: Goal Add/Edit Modal -->
 
 </body>
 </html>

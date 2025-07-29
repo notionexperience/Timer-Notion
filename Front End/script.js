@@ -4,6 +4,8 @@ let currentUser = null; // null if guest, user object if logged in
 const LOCAL_STORAGE_KEY_TASKS = 'focusflow_guest_tasks';
 // NEW: Changed to store an array of notes for guest mode
 const LOCAL_STORAGE_KEY_NOTES = 'focusflow_guest_notes'; 
+// NEW: Local storage key for guest goals
+const LOCAL_STORAGE_KEY_GOALS = 'focusflow_guest_goals';
 
 // --- Global object to store notification timers ---
 // This is crucial for being able to cancel scheduled notifications.
@@ -19,6 +21,9 @@ let currentNoteId = null; // Tracks the ID of the currently active note
 
 // NEW: Set to store IDs of tasks whose subtasks are currently expanded
 const expandedTaskIds = new Set();
+
+// NEW: Global variable to store all goals
+let allGoals = [];
 
 // --- Local Storage Functions for Guest Mode ---
 function getGuestTasks() {
@@ -50,6 +55,22 @@ function saveGuestNotes(notes) {
     localStorage.setItem(LOCAL_STORAGE_KEY_NOTES, JSON.stringify(notes));
 }
 
+// NEW: Functions for guest goals
+function getGuestGoals() {
+    try {
+        const goals = localStorage.getItem(LOCAL_STORAGE_KEY_GOALS);
+        return goals ? JSON.parse(goals) : [];
+    } catch (e) {
+        console.error("Error parsing guest goals from localStorage:", e);
+        return [];
+    }
+}
+
+function saveGuestGoals(goals) {
+    localStorage.setItem(LOCAL_STORAGE_KEY_GOALS, JSON.stringify(goals));
+}
+
+
 async function migrateGuestDataToSupabase() {
     if (!currentUser) {
         console.warn("No user to migrate guest data to.");
@@ -58,6 +79,7 @@ async function migrateGuestDataToSupabase() {
 
     const guestTasks = getGuestTasks();
     const guestNotes = getGuestNotes(); // Now gets an array
+    const guestGoals = getGuestGoals(); // NEW: Get guest goals
 
     if (guestTasks.length > 0) {
         console.log("Migrating guest tasks to Supabase...");
@@ -78,6 +100,7 @@ async function migrateGuestDataToSupabase() {
             recurrence_details: task.recurrence_details || {},
             original_task_id: task.original_task_id || null, // For instances of recurring tasks
             next_occurrence_date: task.next_occurrence_date || null, // When the next instance should be created
+            goal_id: task.goal_id || null, // NEW: Include goal_id
         }));
 
         const { error: tasksError } = await supabase.from("tasks").insert(tasksToInsert, { ignoreDuplicates: true });
@@ -101,13 +124,37 @@ async function migrateGuestDataToSupabase() {
             updated_at: note.updated_at || new Date().toISOString(),
         }));
 
-        // Use insert for multiple notes, onConflict is not needed if IDs are unique
-        const { error: notesError } = await supabase.from("notes").insert(notesToInsert);
+        // Use upsert for notes to handle potential existing notes (though unlikely for guest migration)
+        // onConflict: 'id' or 'title, user_id' if you want to prevent duplicate titles per user
+        const { error: notesError } = await supabase.from("notes").upsert(notesToInsert, { onConflict: 'id' });
         if (notesError) {
             console.error("Error migrating guest notes:", notesError.message);
         } else {
             console.log("Guest notes migrated successfully.");
             localStorage.removeItem(LOCAL_STORAGE_KEY_NOTES);
+        }
+    }
+
+    // NEW: Migrate guest goals
+    if (guestGoals.length > 0) {
+        console.log("Migrating guest goals to Supabase...");
+        const goalsToInsert = guestGoals.map(goal => ({
+            user_id: currentUser.id,
+            title: goal.title,
+            description: goal.description,
+            start_date: goal.start_date ? new Date(goal.start_date).toISOString() : null,
+            due_date: goal.due_date ? new Date(goal.due_date).toISOString() : null,
+            status: goal.status || 'active',
+            created_at: goal.created_at || new Date().toISOString(),
+            updated_at: goal.updated_at || new Date().toISOString(),
+        }));
+
+        const { error: goalsError } = await supabase.from("goals").insert(goalsToInsert, { ignoreDuplicates: true });
+        if (goalsError) {
+            console.error("Error migrating guest goals:", goalsError.message);
+        } else {
+            console.log("Guest goals migrated successfully.");
+            localStorage.removeItem(LOCAL_STORAGE_KEY_GOALS);
         }
     }
 }
@@ -192,12 +239,13 @@ async function checkUserAndLoadApp() {
     if (authSection) authSection.style.display = "block";
     if (appSection) appSection.style.display = "block";
 
-    const hasGuestData = getGuestTasks().length > 0 || getGuestNotes().length > 0; // Check for guest notes
+    const hasGuestData = getGuestTasks().length > 0 || getGuestNotes().length > 0 || getGuestGoals().length > 0; // Check for guest notes and goals
     if (guestModeMessage) {
         guestModeMessage.style.display = hasGuestData ? "block" : "none";
     }
     if (userEmailDisplay) userEmailDisplay.textContent = "Guest Mode";
   }
+  await loadGoals(); // NEW: Load goals before tasks so they can be linked
   await loadTasks();
   await loadNotes(); // NEW: Load multiple notes
   // NEW: Check and generate recurring tasks on app load
@@ -214,10 +262,10 @@ async function loadTasks() {
 
     let tasks = [];
     if (currentUser) {
-        // Fetch tasks, and include subtasks, attachments, and recurrence fields
+        // Fetch tasks, and include subtasks, attachments, recurrence fields, and goal_id
         const { data: supabaseTasks, error } = await supabase
             .from("tasks")
-            .select("*, subtasks, attachments, recurrence_type, recurrence_details, original_task_id, next_occurrence_date")
+            .select("*, subtasks, attachments, recurrence_type, recurrence_details, original_task_id, next_occurrence_date, goal_id") // NEW: Added goal_id
             .eq("user_id", currentUser.id)
             .order("position", { ascending: true })
             .order("created_at", { ascending: false });
@@ -238,6 +286,7 @@ async function loadTasks() {
     // Populate filter dropdowns with unique values from allTasks
     populateCategoryFilter(allTasks);
     populatePriorityFilter(allTasks);
+    populateGoalFilter(allGoals); // NEW: Populate goal filter for tasks
 
     filterTasks(); // Apply filters and render tasks initially
 
@@ -266,7 +315,7 @@ async function loadTasks() {
 }
 
 // Modified addTask to accept full ISO date-time string and recurrence info
-async function addTask(content, category = "Personal", priority = "Medium", dueDateTime = null, notificationTime = null, attachments = [], recurrenceType = 'none', recurrenceDetails = {}) {
+async function addTask(content, category = "Personal", priority = "Medium", dueDateTime = null, notificationTime = null, attachments = [], recurrenceType = 'none', recurrenceDetails = {}, goalId = null) { // NEW: Added goalId
     let newTask = null;
     const taskList = document.getElementById("taskList");
     const lastTaskPosition = taskList.children.length > 0 ?
@@ -295,6 +344,7 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
                 recurrence_details: recurrenceDetails, // NEW
                 original_task_id: null, // This is an original recurring task, not an instance
                 next_occurrence_date: nextOccurrenceDate, // NEW
+                goal_id: goalId, // NEW: Include goal_id
             },
         ]).select();
 
@@ -322,6 +372,7 @@ async function addTask(content, category = "Personal", priority = "Medium", dueD
             recurrence_details: recurrenceDetails, // NEW
             original_task_id: null, // This is an original recurring task, not an instance
             next_occurrence_date: nextOccurrenceDate, // NEW
+            goal_id: goalId, // NEW: Include goal_id
         };
         guestTasks.push(newTask);
         saveGuestTasks(guestTasks);
@@ -355,12 +406,16 @@ async function updateTask(taskId, updates) {
             const { data, error } = await supabase.from("tasks").select("*").eq("id", taskId).single();
             if (!error) currentTask = data;
         } else {
-            currentTask = getGuestTasks().find(t => t.id == Number(taskId));
+            currentTask = allTasks.find(t => t.id == Number(taskId)); // Use allTasks for guest mode
         }
 
         if (currentTask) {
             scheduleTaskNotification(currentTask);
         }
+    }
+    // NEW: If task completion status or goal_id changes, update goal progress
+    if (updates.is_done !== undefined || updates.goal_id !== undefined) {
+        await loadGoals(); // Reload goals to recalculate progress
     }
 }
 
@@ -372,6 +427,18 @@ async function deleteTask(id) {
         // Optional: If you implement actual Supabase Storage, you might want to
         // delete associated files from storage here before deleting the task.
         // This would require fetching the task's attachments first.
+        const taskToDelete = allTasks.find(t => t.id == id);
+        if (taskToDelete && taskToDelete.attachments && taskToDelete.attachments.length > 0) {
+            const filePaths = taskToDelete.attachments.map(att => att.file_path).filter(Boolean);
+            if (filePaths.length > 0) {
+                const { error: storageError } = await supabase.storage
+                    .from('task-attachments') // Your bucket name
+                    .remove(filePaths);
+                if (storageError) {
+                    console.error("Error deleting associated files from Supabase Storage:", storageError.message);
+                }
+            }
+        }
 
         const { error } = await supabase
             .from("tasks")
@@ -387,6 +454,7 @@ async function deleteTask(id) {
         console.log("Deleted task from Local Storage (Guest Mode):", id);
     }
     await updateTaskPositionsInDB();
+    await loadGoals(); // NEW: Reload goals as a task might have been linked to a goal
 }
 
 // NEW: Functions for multiple notes
@@ -420,7 +488,12 @@ async function loadNotes() {
     
     // Select the first note if available, or create a new one
     if (allNotes.length > 0) {
-        selectNote(allNotes[0].id);
+        // Ensure currentNoteId is valid, otherwise default to first note
+        if (!currentNoteId || !allNotes.some(note => note.id === currentNoteId)) {
+            selectNote(allNotes[0].id);
+        } else {
+            selectNote(currentNoteId); // Re-select the currently active note
+        }
     } else {
         createNote(); // Create a default empty note if none exist
     }
@@ -553,6 +626,11 @@ function renderNoteList(notesToRender = allNotes) {
 
     if (notesToRender.length === 0) {
         noteListContainer.innerHTML = '<p class="empty-state">No notes found. Click "New Note" to create one!</p>';
+        // If no notes, ensure the delete button is disabled and editor is clear
+        document.getElementById("deleteNoteButton").disabled = true;
+        document.getElementById("noteTitleInput").value = "";
+        document.getElementById("noteCategorySelect").value = "General";
+        if (quill) quill.root.innerHTML = "";
         return;
     }
 
@@ -579,6 +657,286 @@ function renderNoteList(notesToRender = allNotes) {
     });
     noteListContainer.innerHTML = ''; // Clear previous list
     noteListContainer.appendChild(ul);
+}
+
+
+// NEW: Goal Management Functions
+async function loadGoals() {
+    const goalList = document.getElementById("goalList");
+    const noGoalsMessage = document.getElementById("noGoalsMessage");
+    if (!goalList || !noGoalsMessage) { console.error("Goal elements not found!"); return; }
+
+    let goals = [];
+    if (currentUser) {
+        const { data: supabaseGoals, error } = await supabase
+            .from("goals")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order("due_date", { ascending: true })
+            .order("created_at", { ascending: false });
+
+        if (error) {
+            console.error("Failed to load goals from Supabase:", error.message);
+            return;
+        }
+        goals = supabaseGoals;
+        console.log("Loaded goals from Supabase:", goals);
+    } else {
+        goals = getGuestGoals();
+        goals.sort((a, b) => {
+            const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+            const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+            return dateA - dateB || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        });
+        console.log("Loaded goals from Local Storage (Guest Mode):", goals);
+    }
+    allGoals = goals; // Store all goals in the global variable
+
+    // Populate goal select dropdowns in task modals
+    populateGoalSelect(allGoals);
+    // Populate goal filter dropdown for tasks
+    populateGoalFilter(allGoals);
+    // Render goals after tasks are loaded (to calculate progress)
+    filterGoals();
+}
+
+async function addGoal(title, description, startDate, dueDate, status) {
+    let newGoal = null;
+    if (currentUser) {
+        const { data, error } = await supabase.from("goals").insert([
+            {
+                user_id: currentUser.id,
+                title: title,
+                description: description,
+                start_date: startDate,
+                due_date: dueDate,
+                status: status,
+            },
+        ]).select();
+
+        if (error) {
+            console.error("Add goal to Supabase failed:", error.message);
+            return null;
+        }
+        newGoal = data[0];
+    } else {
+        const guestGoals = getGuestGoals();
+        newGoal = {
+            id: crypto.randomUUID(), // Use crypto.randomUUID() for unique ID in guest mode
+            title: title,
+            description: description,
+            start_date: startDate,
+            due_date: dueDate,
+            status: status,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+        guestGoals.push(newGoal);
+        saveGuestGoals(guestGoals);
+        console.log("Added goal to Local Storage (Guest Mode):", newGoal);
+    }
+    await loadGoals(); // Reload goals to update the list
+    return newGoal;
+}
+
+async function updateGoal(goalId, updates) {
+    if (currentUser) {
+        const { error } = await supabase
+            .from("goals")
+            .update(updates)
+            .eq("id", goalId)
+            .eq("user_id", currentUser.id);
+        if (error) console.error("Failed to update goal in Supabase:", error.message);
+    } else {
+        let guestGoals = getGuestGoals();
+        const goalIndex = guestGoals.findIndex(g => g.id === goalId);
+        if (goalIndex !== -1) {
+            guestGoals[goalIndex] = { ...guestGoals[goalIndex], ...updates };
+            saveGuestGoals(guestGoals);
+        }
+    }
+    await loadGoals(); // Reload goals to update the list and progress
+}
+
+async function deleteGoal(goalId) {
+    showCustomConfirm("Are you sure you want to delete this goal? All linked tasks will be unlinked.", async () => {
+        // First, unlink all tasks associated with this goal
+        const tasksToUnlink = allTasks.filter(task => task.goal_id === goalId);
+        for (const task of tasksToUnlink) {
+            await updateTask(task.id, { goal_id: null });
+        }
+
+        if (currentUser) {
+            const { error } = await supabase
+                .from("goals")
+                .delete()
+                .eq("id", goalId)
+                .eq("user_id", currentUser.id);
+
+            if (error) console.error("Failed to delete goal from Supabase:", error.message);
+        } else {
+            allGoals = allGoals.filter(goal => goal.id !== goalId);
+            saveGuestGoals(allGoals);
+        }
+        await loadGoals(); // Reload goals
+        await loadTasks(); // Reload tasks to reflect unlinking
+    });
+}
+
+function calculateGoalProgress(goalId) {
+    const linkedTasks = allTasks.filter(task => task.goal_id === goalId);
+    if (linkedTasks.length === 0) {
+        return { completed: 0, total: 0, percentage: 0 };
+    }
+    const completedTasks = linkedTasks.filter(task => task.is_done).length;
+    const percentage = (completedTasks / linkedTasks.length) * 100;
+    return { completed: completedTasks, total: linkedTasks.length, percentage: percentage };
+}
+
+function createGoalElement(goal) {
+    const li = document.createElement("li");
+    li.classList.add("goal-item");
+    li.dataset.goalId = goal.id;
+    li.dataset.status = goal.status; // For filtering
+
+    const header = document.createElement("div");
+    header.classList.add("goal-item-header");
+    li.appendChild(header);
+
+    const titleDisplay = document.createElement("span");
+    titleDisplay.classList.add("goal-title-display");
+    titleDisplay.textContent = goal.title;
+    header.appendChild(titleDisplay);
+
+    const statusLabel = document.createElement("span");
+    statusLabel.classList.add("goal-status-label", goal.status);
+    statusLabel.textContent = goal.status.charAt(0).toUpperCase() + goal.status.slice(1); // Capitalize first letter
+    header.appendChild(statusLabel);
+
+    const datesDisplay = document.createElement("span");
+    datesDisplay.classList.add("goal-dates-display");
+    const startDate = goal.start_date ? new Date(goal.start_date).toLocaleDateString() : 'N/A';
+    const dueDate = goal.due_date ? new Date(goal.due_date).toLocaleDateString() : 'N/A';
+    datesDisplay.textContent = `📅 ${startDate} - ${dueDate}`;
+    header.appendChild(datesDisplay);
+
+    if (goal.description) {
+        const descriptionDisplay = document.createElement("p");
+        descriptionDisplay.classList.add("goal-description-display");
+        descriptionDisplay.textContent = goal.description;
+        li.appendChild(descriptionDisplay);
+    }
+
+    // Progress Bar
+    const progressData = calculateGoalProgress(goal.id);
+    const progressContainer = document.createElement("div");
+    progressContainer.classList.add("goal-progress-container");
+    li.appendChild(progressContainer);
+
+    const progressBar = document.createElement("div");
+    progressBar.classList.add("goal-progress-bar");
+    progressBar.style.width = `${progressData.percentage}%`;
+    progressContainer.appendChild(progressBar);
+
+    const progressText = document.createElement("p");
+    progressText.classList.add("goal-progress-text");
+    progressText.textContent = `Progress: ${progressData.completed}/${progressData.total} tasks (${progressData.percentage.toFixed(0)}%)`;
+    li.appendChild(progressText);
+
+    // Actions
+    const actionsDiv = document.createElement("div");
+    actionsDiv.classList.add("goal-actions");
+    li.appendChild(actionsDiv);
+
+    const editBtn = document.createElement("button");
+    editBtn.classList.add("button", "edit-button");
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", () => showGoalModal(goal));
+    actionsDiv.appendChild(editBtn);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.classList.add("button", "button-secondary", "delete-button");
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", () => deleteGoal(goal.id));
+    actionsDiv.appendChild(deleteBtn);
+
+    return li;
+}
+
+function renderGoals(goalsToRender) {
+    const goalList = document.getElementById("goalList");
+    const noGoalsMessage = document.getElementById("noGoalsMessage");
+    if (!goalList || !noGoalsMessage) return;
+
+    goalList.innerHTML = "";
+    if (goalsToRender.length === 0) {
+        noGoalsMessage.style.display = 'block';
+    } else {
+        noGoalsMessage.style.display = 'none';
+        goalsToRender.forEach(goal => {
+            const li = createGoalElement(goal);
+            goalList.appendChild(li);
+        });
+    }
+}
+
+function populateGoalSelect(goals) {
+    const goalSelect = document.getElementById("goalSelect");
+    const editGoalSelect = document.getElementById("editGoalSelect");
+    if (!goalSelect || !editGoalSelect) return;
+
+    // Store current values to re-select after repopulating
+    const currentGoalSelectValue = goalSelect.value;
+    const currentEditGoalSelectValue = editGoalSelect.value;
+
+    // Clear existing options, keeping "No Goal"
+    goalSelect.innerHTML = '<option value="none">No Goal</option>';
+    editGoalSelect.innerHTML = '<option value="none">No Goal</option>';
+
+    goals.forEach(goal => {
+        const option = document.createElement('option');
+        option.value = goal.id;
+        option.textContent = goal.title;
+        goalSelect.appendChild(option);
+
+        const editOption = document.createElement('option');
+        editOption.value = goal.id;
+        editOption.textContent = goal.title;
+        editGoalSelect.appendChild(editOption);
+    });
+
+    // Restore previous selections
+    if (Array.from(goalSelect.options).some(opt => opt.value === currentGoalSelectValue)) {
+        goalSelect.value = currentGoalSelectValue;
+    } else {
+        goalSelect.value = 'none';
+    }
+    if (Array.from(editGoalSelect.options).some(opt => opt.value === currentEditGoalSelectValue)) {
+        editGoalSelect.value = currentEditGoalSelectValue;
+    } else {
+        editGoalSelect.value = 'none';
+    }
+}
+
+function populateGoalFilter(goals) {
+    const goalFilter = document.getElementById("goalFilter");
+    if (!goalFilter) return;
+
+    const currentGoalFilterValue = goalFilter.value;
+
+    goalFilter.innerHTML = '<option value="all">All Goals</option><option value="no-goal">No Goal</option>';
+    goals.forEach(goal => {
+        const option = document.createElement('option');
+        option.value = goal.id;
+        option.textContent = goal.title;
+        goalFilter.appendChild(option);
+    });
+
+    if (Array.from(goalFilter.options).some(opt => opt.value === currentGoalFilterValue)) {
+        goalFilter.value = currentGoalFilterValue;
+    } else {
+        goalFilter.value = 'all';
+    }
 }
 
 
@@ -859,6 +1217,7 @@ function createTaskElement(task) {
     li.dataset.priority = task.priority || "Medium";
     li.dataset.position = task.position || 0;
     li.dataset.createdAt = task.created_at; // Store creation date for sorting
+    li.dataset.goalId = task.goal_id || ""; // NEW: Store goal ID
 
     if (task.is_done) {
         li.classList.add("finished");
@@ -978,6 +1337,38 @@ function createTaskElement(task) {
         recurrenceLabel.textContent = '';
     }
     li.appendChild(recurrenceLabel);
+
+    // NEW: Goal Label Display
+    const goalLabel = document.createElement("span");
+    goalLabel.classList.add("goal-label");
+    if (task.goal_id) {
+        const linkedGoal = allGoals.find(g => g.id === task.goal_id);
+        if (linkedGoal) {
+            goalLabel.textContent = `🎯 ${linkedGoal.title}`;
+            goalLabel.title = `Linked to Goal: ${linkedGoal.title}`;
+            goalLabel.style.cursor = "pointer";
+            goalLabel.addEventListener("click", () => {
+                // When clicked, switch to goals section and filter by this goal
+                document.getElementById("goalsSection").style.display = "block";
+                document.getElementById("filterSortSection").style.display = "none";
+                document.getElementById("taskCountToday").style.display = "none";
+                document.getElementById("taskList").style.display = "none";
+                document.getElementById("toggleGoals").classList.add("active");
+                document.getElementById("toggleNotes").classList.remove("active");
+
+                document.getElementById("goalSearchInput").value = ""; // Clear search
+                document.getElementById("goalStatusFilter").value = "all"; // Clear status filter
+                document.getElementById("goalSortOrder").value = "dueDateAsc"; // Default sort
+                filterGoals(); // Re-render goals
+            });
+        } else {
+            goalLabel.textContent = `🎯 Unlinked Goal`; // If goal not found
+            goalLabel.title = `Linked to unknown goal ID: ${task.goal_id}`;
+        }
+    } else {
+        goalLabel.textContent = '';
+    }
+    li.appendChild(goalLabel);
     
     // Notification Time Display
     const notificationTimeDisplay = document.createElement("span");
@@ -1010,7 +1401,6 @@ function createTaskElement(task) {
         dueDateDisplay.textContent = '';
     }
     li.appendChild(dueDateDisplay); // Appended after priorityLabel
-
 
     // Category label - MOVED HERE
     const categoryLabel = document.createElement("span");
@@ -1074,6 +1464,7 @@ function createTaskElement(task) {
       });
     });
     taskActions.appendChild(deleteBtn);
+
 
     // Append Task Actions
     li.appendChild(taskActions);
@@ -1294,6 +1685,8 @@ function createSubTaskElement(parentTaskId, subtask) {
                 }
             }
         }
+        // NEW: If subtask completion changes, update goal progress
+        await loadGoals();
     });
     li.appendChild(checkbox);
 
@@ -1381,6 +1774,7 @@ async function addTaskFromInput() {
     const dueDateInput = document.getElementById("dueDate"); // Updated ID
     const dueTimeInput = document.getElementById("dueTime"); // Updated ID
     const newAttachmentsDisplay = document.getElementById("newAttachmentsDisplay"); // Get the display area
+    const goalSelect = document.getElementById("goalSelect"); // NEW: Goal select
 
     // NEW: Recurrence fields
     const recurrenceTypeSelect = document.getElementById("recurrenceType");
@@ -1394,6 +1788,7 @@ async function addTaskFromInput() {
 
     const category = categorySelect.value;
     const priority = prioritySelect.value;
+    const goalId = goalSelect.value === "none" ? null : goalSelect.value; // NEW: Get selected goal ID
 
     // Combine date and time into a single ISO string for due_date
     let dueDateTime = null;
@@ -1422,21 +1817,29 @@ async function addTaskFromInput() {
 
     // Handle attachments for new task using newSelectedFiles
     const attachments = [];
-    for (const file of newSelectedFiles) {
-        const attachmentInfo = await handleFileUpload(null, file); // Pass null for taskId initially, will be updated later
-        if (attachmentInfo) {
-            attachments.push(attachmentInfo);
-        }
-    }
+    // For new tasks, we first add the task without attachments, then upload attachments
+    // and update the task with attachment info. This is because Supabase Storage
+    // paths often rely on a task ID.
+    // So, we'll store the files in a temporary array and handle them after task creation.
+    const filesToUploadAfterTaskCreation = [...newSelectedFiles];
+    newSelectedFiles = []; // Clear the global array after copying
 
-    const newTask = await addTask(taskText, category, priority, dueDateTime, null, attachments, recurrenceType, recurrenceDetails); // Pass attachments and recurrence
+    const newTask = await addTask(taskText, category, priority, dueDateTime, null, [], recurrenceType, recurrenceDetails, goalId); // Pass empty attachments initially, and goalId
 
     if (!newTask) return;
 
-    // If attachments were added and we are in Supabase mode, update the task with the real task ID
-    if (currentUser && attachments.length > 0) {
-        const updatedAttachments = attachments.map(att => ({ ...att, task_id: newTask.id }));
-        await updateTask(newTask.id, { attachments: updatedAttachments });
+    // Now upload attachments using the newly created newTask.id
+    const uploadedAttachments = [];
+    for (const file of filesToUploadAfterTaskCreation) {
+        const attachmentInfo = await handleFileUpload(newTask.id, file); // Pass the real taskId
+        if (attachmentInfo) {
+            uploadedAttachments.push(attachmentInfo);
+        }
+    }
+    
+    // Update the newly created task with the uploaded attachment info
+    if (uploadedAttachments.length > 0) {
+        await updateTask(newTask.id, { attachments: uploadedAttachments });
     }
 
 
@@ -1447,13 +1850,14 @@ async function addTaskFromInput() {
     dueTimeInput.value = "";
     recurrenceTypeSelect.value = "none"; // Reset recurrence
     renderRecurrenceDetails('none', recurrenceDetailsContainer); // Clear recurrence details display
+    goalSelect.value = "none"; // NEW: Reset goal select
     
     // Clear selected files and update display for new task form
-    newSelectedFiles = []; 
     newAttachmentsDisplay.innerHTML = ''; 
 
     updateTaskCounter();
     await loadTasks(); // Reload tasks to ensure new task is rendered and sorted
+    await loadGoals(); // NEW: Reload goals to update progress
 }
 
 
@@ -1554,7 +1958,7 @@ function showCustomPrompt(message, onConfirm, defaultValue = '') {
 
 // --- NEW: Task Edit Modal Logic ---
 const editTaskModal = document.getElementById("editTaskModal");
-const closeEditModalButton = document.getElementById("closeEditModal");
+const closeEditModalButton = document.getElementById("closeEditModal"); // This button doesn't exist in HTML, using cancelEditButton
 const saveEditButton = document.getElementById("saveEditButton");
 const cancelEditButton = document.getElementById("cancelEditButton");
 
@@ -1567,6 +1971,7 @@ const editDueTime = document.getElementById("editDueTime"); // New ID for due ti
 const editNotificationOffset = document.getElementById("editNotificationOffset"); // New ID for notification offset in modal
 const editAttachmentInput = document.getElementById("editAttachmentInput"); // NEW attachment input for edit modal
 const currentAttachmentsDisplay = document.getElementById("currentAttachmentsDisplay"); // NEW attachments display container
+const editGoalSelect = document.getElementById("editGoalSelect"); // NEW: Goal select for edit modal
 
 // NEW: Recurrence fields for Edit Task Modal
 const editRecurrenceTypeSelect = document.getElementById("editRecurrenceType");
@@ -1627,6 +2032,9 @@ function showEditModal(task) {
     editRecurrenceTypeSelect.value = task.recurrence_type || 'none';
     renderRecurrenceDetails(editRecurrenceTypeSelect.value, editRecurrenceDetailsContainer, task.recurrence_details);
 
+    // NEW: Set goal selection for edit modal
+    editGoalSelect.value = task.goal_id || 'none';
+
 
     // Handle attachments in edit modal
     attachmentsToKeep = [...(task.attachments || [])]; // Initialize with existing attachments
@@ -1664,6 +2072,7 @@ async function saveEditedTask() {
     const dueDate = editDueDate.value; // YYYY-MM-DD string
     const dueTime = editDueTime.value; // HH:MM string
     const notificationOffset = editNotificationOffset.value ? parseInt(editNotificationOffset.value, 10) : null;
+    const goalId = editGoalSelect.value === "none" ? null : editGoalSelect.value; // NEW: Get selected goal ID
 
     // NEW: Get recurrence data from edit modal
     const recurrenceType = editRecurrenceTypeSelect.value;
@@ -1715,6 +2124,7 @@ async function saveEditedTask() {
         attachments: finalAttachments, // Update with the combined attachments
         recurrence_type: recurrenceType, // NEW
         recurrence_details: recurrenceDetails, // NEW
+        goal_id: goalId, // NEW: Include goal_id
     };
 
     // If recurrence type changed or due date changed, recalculate next_occurrence_date
@@ -1766,6 +2176,7 @@ async function handleFileUpload(taskId, file) {
 
             // --- CHANGE START ---
             // Instead of getPublicUrl, use createSignedUrl for private buckets
+            // This assumes 'task-attachments' bucket is private and requires authentication for access.
             const { data: signedUrlData, error: signedUrlError } = await supabase.storage
                 .from('task-attachments') // Your bucket name
                 .createSignedUrl(uploadData.path, 60 * 60 * 24 * 7); // URL valid for 7 days (adjust as needed)
@@ -1779,6 +2190,7 @@ async function handleFileUpload(taskId, file) {
             }
 
             return { 
+                id: crypto.randomUUID(), // Assign a unique ID for the attachment itself
                 name: file.name, 
                 url: signedUrlData.signedUrl, // Store the signed URL
                 type: file.type,
@@ -1931,6 +2343,7 @@ const priorityFilter = document.getElementById("priorityFilter");
 const sortOrder = document.getElementById("sortOrder");
 const showCompleted = document.getElementById("showCompleted");
 const clearFiltersButton = document.getElementById("clearFiltersButton");
+const goalFilter = document.getElementById("goalFilter"); // NEW: Goal filter for tasks
 
 
 function populateCategoryFilter(tasks) {
@@ -1989,18 +2402,25 @@ function filterTasks() {
     const selectedPriority = priorityFilter.value;
     const currentSortOrder = sortOrder.value;
     const shouldShowCompleted = showCompleted.checked;
+    const selectedGoal = goalFilter.value; // NEW: Get selected goal filter
 
     // Store current filter values to reapply after re-rendering
     categoryFilter.dataset.currentValue = selectedCategory;
     priorityFilter.dataset.currentValue = selectedPriority;
     sortOrder.dataset.currentValue = currentSortOrder;
     showCompleted.dataset.currentValue = shouldShowCompleted;
+    goalFilter.dataset.currentValue = selectedGoal; // NEW: Store goal filter value
 
     let filteredAndSortedTasks = allTasks.filter(task => {
         const contentMatch = task.content.toLowerCase().includes(searchTerm);
         const categoryMatch = selectedCategory === "all" || task.category === selectedCategory;
         const priorityMatch = selectedPriority === "all" || task.priority === selectedPriority;
         
+        // NEW: Goal filter match
+        const goalMatch = selectedGoal === "all" || 
+                         (selectedGoal === "no-goal" && !task.goal_id) ||
+                         (selectedGoal !== "no-goal" && task.goal_id === selectedGoal);
+
         // Check subtasks for search term
         const subtaskMatch = task.subtasks && task.subtasks.some(subtask => 
             subtask.content.toLowerCase().includes(searchTerm)
@@ -2013,7 +2433,7 @@ function filterTasks() {
         // Filter by completion status
         const completionMatch = shouldShowCompleted || !task.is_done;
 
-        return (contentMatch || subtaskMatch || attachmentMatch) && categoryMatch && priorityMatch && completionMatch;
+        return (contentMatch || subtaskMatch || attachmentMatch) && categoryMatch && priorityMatch && completionMatch && goalMatch; // NEW: Include goalMatch
     });
 
     // Apply sorting
@@ -2068,6 +2488,7 @@ function clearAllFilters() {
     priorityFilter.value = "all";
     sortOrder.value = "creationDateDesc"; // Default sort order
     showCompleted.checked = false;
+    goalFilter.value = "all"; // NEW: Clear goal filter
     filterTasks();
 }
 
@@ -2199,7 +2620,8 @@ function calculateNextOccurrence(lastOccurrenceDate, recurrenceType, recurrenceD
             if (daysOfWeek.length === 0) return null; // Cannot recur weekly without specific days
 
             let foundNextDay = false;
-            for (let i = 1; i <= 7; i++) { // Check up to 7 days in the future
+            // Start checking from the day after lastOccurrenceDate
+            for (let i = 1; i <= 7; i++) { 
                 const potentialNextDate = new Date(lastOccurrenceDate);
                 potentialNextDate.setDate(potentialNextDate.getDate() + i);
                 const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][potentialNextDate.getDay()];
@@ -2210,38 +2632,9 @@ function calculateNextOccurrence(lastOccurrenceDate, recurrenceType, recurrenceD
                 }
             }
             if (!foundNextDay) {
-                // If no next day found within the current week cycle, advance to next week and find first day
-                nextDate.setDate(nextDate.getDate() + (7 - nextDate.getDay()) + (new Date().getDay() - nextDate.getDay())); // Move to next Sunday, then adjust
-                for (let i = 0; i < 7; i++) {
-                    const potentialNextDate = new Date(nextDate);
-                    potentialNextDate.setDate(potentialNextDate.getDate() + i);
-                    const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][potentialNextDate.getDay()];
-                    if (daysOfWeek.includes(dayName)) {
-                        nextDate = potentialNextDate;
-                        break;
-                    }
-                }
-            }
-
-            // If the calculated nextDate is still before or on lastOccurrenceDate, advance it
-            // This handles cases where lastOccurrenceDate was already a recurrence day
-            if (nextDate.getTime() <= lastOccurrenceDate.getTime()) {
-                let advanced = false;
-                for (let i = 1; i <= 7; i++) {
-                    const potentialNextDate = new Date(lastOccurrenceDate);
-                    potentialNextDate.setDate(potentialNextDate.getDate() + i);
-                    const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][potentialNextDate.getDay()];
-                    if (daysOfWeek.includes(dayName)) {
-                        if (potentialNextDate.getTime() > lastOccurrenceDate.getTime()) {
-                            nextDate = potentialNextDate;
-                            advanced = true;
-                            break;
-                        }
-                    }
-                }
-                if (!advanced) { // Fallback if somehow still stuck (e.g., only one day selected and it's today)
-                    nextDate.setDate(lastOccurrenceDate.getDate() + 7); // Just go to next week on the same day
-                }
+                // This case should ideally not be hit if daysOfWeek is not empty,
+                // but as a fallback, advance by a week.
+                nextDate.setDate(lastOccurrenceDate.getDate() + 7);
             }
             break;
         case 'monthly':
@@ -2257,16 +2650,18 @@ function calculateNextOccurrence(lastOccurrenceDate, recurrenceType, recurrenceD
             }
             // Handle months with fewer days (e.g., setting day 31 in February)
             if (nextDate.getDate() !== dayOfMonth) {
-                nextDate.setDate(0); // Set to last day of previous month, then add 1 to get to first day of next month
-                nextDate.setMonth(nextDate.getMonth() + 1);
-                nextDate.setDate(dayOfMonth);
+                // If the day doesn't exist in the month (e.g., Feb 30), it rolls over.
+                // We want it to be the specified day of the *next* month.
+                nextDate.setDate(1); // Go to the 1st of the current month
+                nextDate.setMonth(nextDate.getMonth() + 1); // Go to the next month
+                nextDate.setDate(dayOfMonth); // Set the day. If it's invalid, Date object handles it (e.g., Feb 30 becomes Mar 2)
             }
             break;
         case 'yearly':
             const monthAndDay = recurrenceDetails.monthAndDay; // YYYY-MM-DD
             if (!monthAndDay) return null;
-            const [year, month, day] = monthAndDay.split('-').map(Number);
-            
+            const [, month, day] = monthAndDay.split('-').map(Number); // Extract month and day
+
             nextDate.setMonth(month - 1); // Month is 0-indexed
             nextDate.setDate(day);
             
@@ -2295,8 +2690,8 @@ async function generateRecurringTasks() {
     if (!currentUser) return; // Only for logged-in users
 
     console.log("Checking for recurring tasks to generate...");
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Normalize to start of current day
 
     const { data: recurringTasks, error } = await supabase
         .from("tasks")
@@ -2312,11 +2707,12 @@ async function generateRecurringTasks() {
 
     for (const task of recurringTasks) {
         if (task.next_occurrence_date) {
-            const nextOccurrence = new Date(task.next_occurrence_date);
+            let nextOccurrence = new Date(task.next_occurrence_date);
             nextOccurrence.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
 
-            if (nextOccurrence.getTime() <= today.getTime()) {
-                console.log(`Generating new instance for recurring task: "${task.content}" (ID: ${task.id})`);
+            // Loop to generate all overdue instances up to today
+            while (nextOccurrence.getTime() <= today.getTime()) {
+                console.log(`Generating new instance for recurring task: "${task.content}" (Original ID: ${task.id}) due on ${nextOccurrence.toLocaleDateString()}`);
 
                 // Create a new task instance
                 const newInstance = {
@@ -2325,48 +2721,61 @@ async function generateRecurringTasks() {
                     is_done: false,
                     category: task.category,
                     priority: task.priority,
-                    // Set due_date of the new instance to the calculated next occurrence date
-                    due_date: nextOccurrence.toISOString(), 
+                    // Set due_date of the new instance to the calculated next occurrence date, preserving time
+                    due_date: new Date(nextOccurrence.getFullYear(), nextOccurrence.getMonth(), nextOccurrence.getDate(), 
+                                       new Date(task.due_date).getHours(), new Date(task.due_date).getMinutes()).toISOString(), 
                     position: 0, // New tasks usually go to top or can be re-sorted
                     notification_time: task.notification_time,
-                    subtasks: task.subtasks ? task.subtasks.map(st => ({ ...st, is_done: false })) : [], // Reset subtasks completion
-                    attachments: task.attachments || [], // Attachments are copied
+                    subtasks: task.subtasks ? task.subtasks.map(st => ({ ...st, is_done: false, id: crypto.randomUUID() })) : [], // Reset subtasks completion and assign new IDs
+                    attachments: task.attachments || [], // Attachments are copied (note: actual files not duplicated in storage)
                     recurrence_type: 'none', // Instances are not recurring themselves
                     recurrence_details: {},
                     original_task_id: task.id, // Link to the original recurring task
                     next_occurrence_date: null, // Instances don't have a next occurrence
+                    created_at: new Date().toISOString(), // Set creation date for the instance
+                    goal_id: task.goal_id, // NEW: Copy goal_id to the new instance
                 };
 
-                const { error: insertError } = await supabase.from("tasks").insert([newInstance]);
+                const { error: insertError } = await supabase.from("tasks").insert([newInstance]).select();
                 if (insertError) {
                     console.error("Error creating recurring task instance:", insertError.message);
-                    continue;
+                    // If insert fails, break the loop for this task to avoid infinite loops
+                    break; 
                 }
 
                 // Calculate the next recurrence date for the original recurring task
-                const newNextOccurrenceDate = calculateNextOccurrence(new Date(task.next_occurrence_date), task.recurrence_type, task.recurrence_details);
-
-                // Update the original recurring task's next_occurrence_date
-                const updatePayload = {
-                    next_occurrence_date: newNextOccurrenceDate ? newNextOccurrenceDate.toISOString() : null,
-                    // Optionally, mark the original recurring task as done for this cycle, if that's the desired behavior.
-                    // For now, we'll just update its next occurrence date.
-                    // is_done: true // If you want the "parent" task to be marked done after generating an instance
-                };
-                const { error: updateError } = await supabase
-                    .from("tasks")
-                    .update(updatePayload)
-                    .eq("id", task.id)
-                    .eq("user_id", currentUser.id);
-
-                if (updateError) {
-                    console.error("Error updating original recurring task:", updateError.message);
+                const calculatedNext = calculateNextOccurrence(new Date(task.next_occurrence_date), task.recurrence_type, task.recurrence_details);
+                
+                if (calculatedNext) {
+                    task.next_occurrence_date = calculatedNext.toISOString(); // Update task object for next iteration
+                    nextOccurrence = new Date(task.next_occurrence_date);
+                    nextOccurrence.setHours(0, 0, 0, 0); // Normalize for loop condition
+                } else {
+                    // No more occurrences, stop generating for this task
+                    task.next_occurrence_date = null;
+                    break; 
                 }
+            }
+
+            // After generating all due instances, update the original task's next_occurrence_date in DB
+            const updatePayload = {
+                next_occurrence_date: task.next_occurrence_date,
+            };
+            const { error: updateError } = await supabase
+                .from("tasks")
+                .update(updatePayload)
+                .eq("id", task.id)
+                .eq("user_id", currentUser.id);
+
+            if (updateError) {
+                console.error("Error updating original recurring task:", updateError.message);
             }
         }
     }
     await loadTasks(); // Reload tasks to show newly generated instances
+    await loadGoals(); // NEW: Reload goals to update progress for new tasks
 }
+
 
 // NEW: Quill editor instance
 let quill = null;
@@ -2409,6 +2818,8 @@ function populateNoteCategoryFilter(notes) {
 function filterNotes() {
     const searchTerm = noteSearchInput.value.toLowerCase().trim();
     const selectedCategory = noteCategoryFilter.value;
+    const noteSortOrder = document.getElementById("noteSortOrder")?.value || "newest";
+
 
     let filteredNotes = allNotes.filter(note => {
         const titleMatch = note.title.toLowerCase().includes(searchTerm);
@@ -2417,11 +2828,121 @@ function filterNotes() {
         return (titleMatch || contentMatch) && categoryMatch;
     });
 
-    // Sort by updated_at (newest first)
-    filteredNotes.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    // Apply sorting for notes
+    filteredNotes.sort((a, b) => {
+        if (noteSortOrder === "newest") {
+            return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        } else if (noteSortOrder === "oldest") {
+            return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+        } else if (noteSortOrder === "alphabetical") {
+            return a.title.localeCompare(b.title);
+        }
+        return 0;
+    });
 
     renderNoteList(filteredNotes);
 }
+
+// NEW: Goal filter and search
+const goalSearchInput = document.getElementById("goalSearchInput");
+const goalStatusFilter = document.getElementById("goalStatusFilter");
+const goalSortOrder = document.getElementById("goalSortOrder");
+
+function filterGoals() {
+    const searchTerm = goalSearchInput.value.toLowerCase().trim();
+    const selectedStatus = goalStatusFilter.value;
+    const currentSortOrder = goalSortOrder.value;
+
+    let filteredAndSortedGoals = allGoals.filter(goal => {
+        const titleMatch = goal.title.toLowerCase().includes(searchTerm);
+        const descriptionMatch = goal.description.toLowerCase().includes(searchTerm);
+        const statusMatch = selectedStatus === "all" || goal.status === selectedStatus;
+        return (titleMatch || descriptionMatch) && statusMatch;
+    });
+
+    // Apply sorting
+    filteredAndSortedGoals.sort((a, b) => {
+        if (currentSortOrder === "dueDateAsc") {
+            const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+            const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+            return dateA - dateB;
+        } else if (currentSortOrder === "creationDateDesc") {
+            const dateA = new Date(a.created_at).getTime();
+            const dateB = new Date(b.created_at).getTime();
+            return dateB - dateA;
+        } else if (currentSortOrder === "alphabeticalAsc") {
+            return a.title.localeCompare(b.title);
+        }
+        return 0;
+    });
+
+    renderGoals(filteredAndSortedGoals);
+}
+
+
+// --- Goal Add/Edit Modal Logic ---
+const goalModal = document.getElementById("goalModal");
+const goalModalTitle = document.getElementById("goalModalTitle");
+const goalIdInput = document.getElementById("goalId");
+const goalTitleInput = document.getElementById("goalTitle");
+const goalDescriptionInput = document.getElementById("goalDescription");
+const goalStartDateInput = document.getElementById("goalStartDate");
+const goalDueDateInput = document.getElementById("goalDueDate");
+const goalStatusSelect = document.getElementById("goalStatus");
+const saveGoalButton = document.getElementById("saveGoalButton");
+const cancelGoalButton = document.getElementById("cancelGoalButton");
+const closeGoalModalButton = document.getElementById("closeGoalModal");
+
+function showGoalModal(goal = null) {
+    if (goal) {
+        goalModalTitle.textContent = "Edit Goal";
+        goalIdInput.value = goal.id;
+        goalTitleInput.value = goal.title;
+        goalDescriptionInput.value = goal.description || "";
+        goalStartDateInput.value = goal.start_date ? goal.start_date.substring(0, 10) : "";
+        goalDueDateInput.value = goal.due_date ? goal.due_date.substring(0, 10) : "";
+        goalStatusSelect.value = goal.status || "active";
+    } else {
+        goalModalTitle.textContent = "Add New Goal";
+        goalIdInput.value = ""; // Clear for new goal
+        goalTitleInput.value = "";
+        goalDescriptionInput.value = "";
+        goalStartDateInput.value = new Date().toISOString().substring(0, 10); // Default to today
+        goalDueDateInput.value = "";
+        goalStatusSelect.value = "active";
+    }
+    goalModal.style.display = "flex";
+}
+
+function hideGoalModal() {
+    goalModal.style.display = "none";
+}
+
+async function saveGoal() {
+    const goalId = goalIdInput.value;
+    const title = goalTitleInput.value.trim();
+    const description = goalDescriptionInput.value.trim();
+    const startDate = goalStartDateInput.value;
+    const dueDate = goalDueDateInput.value;
+    const status = goalStatusSelect.value;
+
+    if (!title) {
+        showCustomAlert("Goal title cannot be empty.");
+        return;
+    }
+
+    if (goalId) {
+        // Update existing goal
+        await updateGoal(goalId, { title, description, start_date: startDate, due_date: dueDate, status });
+        showCustomAlert("Goal updated successfully!");
+    } else {
+        // Add new goal
+        await addGoal(title, description, startDate, dueDate, status);
+        showCustomAlert("Goal added successfully!");
+    }
+    hideGoalModal();
+}
+
 
 // --- Main Init Function ---
 function init() {
@@ -2518,6 +3039,12 @@ function init() {
     notesSidebar?.classList.add("open");
     if (toggleNotesBtn) toggleNotesBtn.style.display = "active";
     document.body.classList.add("notes-open");
+    // Hide goals section if notes is opened
+    document.getElementById("goalsSection").style.display = "none";
+    document.getElementById("filterSortSection").style.display = "block"; // Show task filters
+    document.getElementById("taskCountToday").style.display = "block"; // Show task counter
+    document.getElementById("taskList").style.display = "block"; // Show task list
+    document.getElementById("toggleGoals").classList.remove("active");
     // loadNote(); // No longer needed here, loadNotes handles initial selection
   });
 
@@ -2599,6 +3126,7 @@ function init() {
   // NEW: Note search and category filter listeners
   noteSearchInput?.addEventListener("input", debounce(filterNotes, 300));
   noteCategoryFilter?.addEventListener("change", filterNotes);
+  document.getElementById("noteSortOrder")?.addEventListener("change", filterNotes); // Add listener for note sort order
 
   // NEW: Custom category for notes
   noteCategorySelect?.addEventListener("change", () => {
@@ -2633,8 +3161,56 @@ function init() {
   });
 
 
-  // --- Reset / Clear Buttons ---
+  // --- NEW: Goals Section Toggle ---
+  const toggleGoalsBtn = document.getElementById("toggleGoals");
+  const goalsSection = document.getElementById("goalsSection");
+  const filterSortSection = document.getElementById("filterSortSection");
+  const taskCountToday = document.getElementById("taskCountToday");
   const taskList = document.getElementById("taskList");
+
+  toggleGoalsBtn?.addEventListener("click", () => {
+    if (goalsSection.style.display === "none") {
+        goalsSection.style.display = "block";
+        filterSortSection.style.display = "none";
+        taskCountToday.style.display = "none";
+        taskList.style.display = "none";
+        toggleGoalsBtn.classList.add("active");
+        // Hide notes sidebar if goals is opened
+        notesSidebar?.classList.remove("open");
+        document.body.classList.remove("notes-open");
+        toggleNotesBtn.classList.remove("active");
+        filterGoals(); // Render goals when section is opened
+    } else {
+        goalsSection.style.display = "none";
+        filterSortSection.style.display = "block";
+        taskCountToday.style.display = "block";
+        taskList.style.display = "block";
+        toggleGoalsBtn.classList.remove("active");
+        filterTasks(); // Re-render tasks when goals section is closed
+    }
+  });
+
+
+  // --- Goal Modal Event Listeners ---
+  const addNewGoalButton = document.getElementById("addNewGoalButton");
+  if (addNewGoalButton) addNewGoalButton.addEventListener("click", () => showGoalModal());
+  if (saveGoalButton) saveGoalButton.addEventListener("click", saveGoal);
+  if (cancelGoalButton) cancelGoalButton.addEventListener("click", hideGoalModal);
+  if (closeGoalModalButton) closeGoalModalButton.addEventListener("click", hideGoalModal);
+  window.addEventListener("click", (event) => {
+    if (event.target === goalModal) {
+      hideGoalModal();
+    }
+  });
+
+  // NEW: Goal filter and search listeners
+  goalSearchInput?.addEventListener("input", debounce(filterGoals, 300));
+  goalStatusFilter?.addEventListener("change", filterGoals);
+  goalSortOrder?.addEventListener("change", filterGoals);
+
+
+  // --- Reset / Clear Buttons ---
+  // const taskList = document.getElementById("taskList"); // Already defined above
 
   document.getElementById('resetCountBtn')?.addEventListener('click', async () => {
     showCustomConfirm("Are you sure you want to delete all tasks? This cannot be undone.", async () => {
@@ -2669,6 +3245,32 @@ function init() {
 
     if (tasksToDeleteIds.length > 0) {
       if (currentUser) {
+        // Fetch tasks to get attachment file_paths before deleting
+        const { data: tasksWithAttachments, error: fetchError } = await supabase
+            .from('tasks')
+            .select('id, attachments')
+            .in('id', tasksToDeleteIds)
+            .eq('user_id', currentUser.id);
+
+        if (fetchError) {
+            console.error("Error fetching tasks for attachment deletion:", fetchError.message);
+            showCustomAlert("Error fetching tasks for attachment cleanup.");
+        } else if (tasksWithAttachments) {
+            for (const task of tasksWithAttachments) {
+                if (task.attachments && task.attachments.length > 0) {
+                    const filePathsToDelete = task.attachments.map(att => att.file_path).filter(Boolean);
+                    if (filePathsToDelete.length > 0) {
+                        const { error: storageError } = await supabase.storage
+                            .from('task-attachments')
+                            .remove(filePathsToDelete);
+                        if (storageError) {
+                            console.error("Error deleting attachments from storage:", storageError.message);
+                        }
+                    }
+                }
+            }
+        }
+
         const { error } = await supabase
           .from("tasks")
           .delete()
@@ -2743,10 +3345,8 @@ function init() {
   });
 
   // --- Event Listeners for Edit Modal ---
-  if (closeEditModalButton) {
-    closeEditModalButton.addEventListener("click", hideEditModal);
-  }
-  if (cancelEditButton) {
+  // The closeEditModalButton is not present in the HTML, using cancelEditButton instead.
+  if (cancelEditButton) { // Using cancelEditButton as the close button
     cancelEditButton.addEventListener("click", hideEditModal);
   }
   if (saveEditButton) {
@@ -2839,6 +3439,10 @@ function init() {
   }
   if (clearFiltersButton) {
       clearFiltersButton.addEventListener("click", clearAllFilters);
+  }
+  // NEW: Goal filter for tasks
+  if (goalFilter) {
+      goalFilter.addEventListener("change", filterTasks);
   }
 
 } // End of init()
