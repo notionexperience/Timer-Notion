@@ -1170,7 +1170,7 @@ function scheduleTaskNotification(task) {
             // Play a notification sound
             try {
                 // Ensure you have a sound file at this path, e.g., assets/notification.mp3
-                const notificationSound = new Audio('/Sounds/notification-sound-effect-372475.mp3');
+                const notificationSound = new Audio('./notification-sound-effect-372475.mp3');
                 notificationSound.play().catch(e => console.error("Error playing notification sound:", e));
             } catch (e) {
                 console.error("Could not create Audio object for notification sound:", e);
